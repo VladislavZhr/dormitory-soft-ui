@@ -1,0 +1,11 @@
+@import '../../node_modules/tailwindcss/dist/lib.d.mts';
+
+/* підключаємо локальний плагін HeroUI */
+@plugin "./hero.ts";
+
+/* реєструємо джерело класів HeroUI з node_modules
+   ШЛЯХ зверни увагу: якщо globals.css у src/app/, може знадобитись ../.. замість .. */
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+
+/* темна тема як кастомний варіант (зручно для перемикача тем) */
+@custom-variant dark (&:is(.dark *));

@@ -1,0 +1,50 @@
+mkdir -p .vscode
+
+# 1) Єдині налаштування редактора
+cat > .vscode/settings.json << 'EOF'
+{
+  // Форматер і автофікси
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+
+  // Кінець рядка та фінальний новий рядок (узгоджено з .gitattributes/.editorconfig)
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+
+  // Використовуємо TypeScript з node_modules проєкту
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+
+  // ESLint (flat-config)
+  "eslint.useFlatConfig": true,
+  "eslint.validate": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+  "eslint.codeActionsOnSave.mode": "explicit",
+
+  // Tailwind
+  "tailwindCSS.emmetCompletions": true,
+  "tailwindCSS.includeLanguages": { "typescriptreact": "html" },
+
+  // Не захаращуємо пошук і перегляд
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/coverage": true
+  }
+}
+EOF
+
+# 2) Рекомендовані розширення VSCode
+cat > .vscode/extensions.json << 'EOF'
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss"
+  ]
+}
+EOF
