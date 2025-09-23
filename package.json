@@ -23,7 +23,8 @@
     "@heroui/theme": "^2.4.22",
     "next": "^15.5.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

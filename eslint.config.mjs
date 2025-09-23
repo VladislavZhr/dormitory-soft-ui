@@ -51,13 +51,12 @@ export default [
         },
       ],
 
-        "react/react-in-jsx-scope": "off",
-        "react/jsx-uses-react": "off",
-        "no-undef": "off",
+      'react/react-in-jsx-scope': 'off',
+      'react/jsx-uses-react': 'off',
+      'no-undef': 'off',
 
-        // Prettier
+      // Prettier
       'prettier/prettier': 'error',
-
     },
     settings: {
       'import/resolver': {
