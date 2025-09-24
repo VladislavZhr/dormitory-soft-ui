@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { Button } from '@heroui/react'; // для старту ОК (глобальна інсталяція)
+import { Button } from "@heroui/react"; // для старту ОК (глобальна інсталяція)
 
 export default function Page() {
   return (
