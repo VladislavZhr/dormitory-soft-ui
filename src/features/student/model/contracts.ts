@@ -16,3 +16,8 @@ export type UpdateStudentRequest = Partial<{
 }>;
 
 export type UpdateStudentResponse = StudentApiDto;
+
+export type DeleteStudentResponse = {
+  success: boolean;
+  message?: string;
+};

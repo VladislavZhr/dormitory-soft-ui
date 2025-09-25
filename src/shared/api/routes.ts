@@ -1,5 +1,5 @@
 // src/shared/api/routes.ts
 
 export const API_ROUTES = {
-  students: (id: number) => `/api/students/${id}`,
+  students: (id: string | number) => `/api/students/${encodeURIComponent(String(id))}`,
 } as const;
