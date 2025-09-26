@@ -1,3 +1,2 @@
-export const env = {
-  API_URL: process.env.NEXT_PUBLIC_API_URL ?? "https://9430813741ef.ngrok-free.app",
-};
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const BASE_API_URL = (process.env.BACKEND_API_URL || process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");

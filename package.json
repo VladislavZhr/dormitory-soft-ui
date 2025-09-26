@@ -1,6 +1,7 @@
 {
   "name": "repo-dormitory-soft-ui",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
