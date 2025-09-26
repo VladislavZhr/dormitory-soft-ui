@@ -1,57 +1,56 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+import { httpJson, HttpError } from "@/shared/api/http";
+
+import { loginSchema } from "../model/schema";
 import type { LoginReq } from "../model/types";
 
 export type ApiError = Error & {
   status?: number;
-  fieldErrors?: Record<string, string>;
+  fieldErrors?: Record<string, string> | undefined;
 };
 
 /**
  * Клієнтська mutationFn для TanStack Query.
- * Важливо: звертаємось до ВНУТРІШНЬОГО Next API (/api/auth/login).
- * HttpOnly cookie виставляється на сервері в route handler.
+ * Валідація Zod тут, до звернення в /api/auth/login.
+ * Потік: UI → (validate) → httpJson('/api/auth/login') → route.ts → зовнішній бекенд.
  */
 export async function login(payload: LoginReq): Promise<void> {
-  let res: Response;
-
-  try {
-    res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      cache: "no-store",
-    });
-  } catch (networkErr) {
-    const err: ApiError = new Error("Мережна помилка. Перевірте з’єднання.");
-    err.status = 0;
-    throw err;
-  }
-
-  if (res.ok) return;
-
-  let data: unknown = null;
-  const contentType = res.headers.get("content-type") || "";
-  try {
-    if (contentType.includes("application/json")) {
-      data = await res.json();
-    } else {
-      const text = await res.text();
-      data = text ? { message: text } : null;
+  // 1) Zod-валідація на клієнті
+  const parsed = loginSchema.safeParse(payload);
+  if (!parsed.success) {
+    // Збираємо { [field]: message } під mapError
+    const fieldErrors: Record<string, string> = {};
+    for (const issue of parsed.error.issues) {
+      const path = issue.path.join(".") || "_root";
+      if (!fieldErrors[path]) fieldErrors[path] = issue.message;
     }
-  } catch {
-    // ignore parse errors
+    const apiErr: ApiError = new Error("Помилка валідації");
+    apiErr.status = 400;
+    apiErr.fieldErrors = fieldErrors;
+    throw apiErr;
   }
 
-  const err: ApiError = new Error((isRecord(data) && typeof data.message === "string" && data.message) || res.statusText || `HTTP ${res.status}`);
-  err.status = res.status;
+  // 2) Внутрішній бекенд (Next API)
+  try {
+    await httpJson<unknown>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify(parsed.data),
+    });
+    return;
+  } catch (e: unknown) {
+    // 3) Нормалізація помилок під mapError
+    if (e instanceof HttpError) {
+      const apiErr: ApiError = new Error(e.message);
+      apiErr.status = e.status;
 
-  if (isRecord(data) && isRecord(data.fieldErrors)) {
-    err.fieldErrors = data.fieldErrors as Record<string, string>;
+      const body = e.body;
+      if (body && typeof body === "object" && "fieldErrors" in body) {
+        apiErr.fieldErrors = (body as { fieldErrors?: Record<string, string> }).fieldErrors;
+      }
+      throw apiErr;
+    }
+
+    const apiErr: ApiError = new Error("Мережна помилка. Перевірте з’єднання.");
+    apiErr.status = 0;
+    throw apiErr;
   }
-
-  throw err;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === "object" && v !== null;
 }
