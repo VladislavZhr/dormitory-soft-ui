@@ -14,3 +14,4 @@
 
 # Windows-скрипти з CRLF
 *.bat eol=crlf
+.husky/* text eol=lf
