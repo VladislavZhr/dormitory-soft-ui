@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+import { INVENTORY_EN_TO_UA } from '@/entities/student-inventory/model/mapper';
 import { INVENTORY_KINDS, type InventoryKind } from '@/entities/student-inventory/model/types';
 
 type KindOption = { value: InventoryKind; label: string };
@@ -42,7 +43,7 @@ export function IssueControls({
     Array.isArray(kinds) && kinds.length > 0 ? (kinds as InventoryKind[]) : INVENTORY_KINDS;
 
   const options: KindOption[] = useMemo(
-    () => finalKinds.map((k) => ({ value: k, label: String(k) })),
+    () => finalKinds.map((k) => ({ value: k, label: INVENTORY_EN_TO_UA[k] })),
     [finalKinds],
   );
 
@@ -103,8 +104,8 @@ export function IssueControls({
         </div>
 
         {/* Лічильник кількості */}
-        <div className="basis-[190px]">
-          <div className="inline-flex h-11 w-full items-stretch rounded-md border border-slate-300 bg-white">
+        <div className="basis-auto">
+          <div className="inline-flex h-11 items-stretch rounded-md border border-slate-300 bg-white overflow-hidden">
             <button
               type="button"
               onClick={dec}
@@ -113,7 +114,7 @@ export function IssueControls({
             >
               −
             </button>
-            <div className="flex h-full w-12 select-none items-center justify-center text-center font-medium text-slate-700">
+            <div className="flex h-full min-w-[40px] select-none items-center justify-center text-center font-medium text-slate-700">
               {qty}
             </div>
             <button
@@ -171,10 +172,10 @@ export function IssueControls({
             <button
               type="button"
               onClick={onExportAction}
-              className="flex min-w-[160px] h-11 w-full items-center justify-center rounded-lg border border-blue-200 bg-white px-4 text-sm font-medium text-blue-700 hover:bg-blue-50 sm:flex-1"
+              className="flex min-w-[160px] h-11 w-full items-center justify-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700 sm:flex-1"
               aria-disabled={disabled ? true : undefined}
             >
-              Експорт в Excel
+              Арматурний Cписок
             </button>
           </div>
         </div>

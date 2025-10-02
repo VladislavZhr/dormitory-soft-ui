@@ -10,5 +10,9 @@ export default function StudentInventorySection({
   student: Student;
   studentId: number;
 }) {
-  return <Section student={student} studentId={studentId} />;
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <Section student={student} studentId={studentId} />
+    </div>
+  );
 }

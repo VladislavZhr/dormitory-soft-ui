@@ -1,4 +1,4 @@
-// Доменно: суворо фіксуємо перелік значень, але зручні як звичайні рядки
+// Доменно: перелік значень
 export enum InventoryKindEnum {
   TULLE = 'tulle',
   CURTAINS = 'curtains',
@@ -7,19 +7,39 @@ export enum InventoryKindEnum {
   PILLOWCASE = 'pillowcase',
   MATTRESS_COVER = 'mattressCover',
   DUVET_COVER = 'duvetCover',
-  TOWEL = 'towel',
+  TOWEL_WAFFLE = 'waffleTowel',
+  TOWEL_TERRY = 'terryTowel',
   SHEET = 'sheet',
   BEDSPREAD = 'cover',
   PILLOW = 'pillow',
+  TABLECLOTH = 'tablecloth',
+  BED_SET = 'bedSet',
 }
 
-// Юніон зі значень енаму (рядкові літерали):
+export enum InventoryKindUA {
+  TULLE = 'Тюль',
+  CURTAINS = 'Штори',
+  BLANKET = 'Ковдра',
+  MATTRESS = 'Матрац',
+  PILLOWCASE = 'Наволочки',
+  MATTRESS_COVER = 'Чохол',
+  DUVET_COVER = 'Підковдра',
+  TOWEL_WAFFLE = 'Рушник вафельний',
+  TOWEL_TERRY = 'Рушник махровий',
+  SHEET = 'Простирадла',
+  BEDSPREAD = 'Покривала',
+  PILLOW = 'Подушка',
+  TABLECLOTH = 'Скатертина',
+  BED_SET = 'К-т білизни',
+}
+
+// Юніон
 export type InventoryKind = `${InventoryKindEnum}`;
 
-// Корисне: перелік для UI (select, підказки тощо)
+// Перелік для UI
 export const INVENTORY_KINDS: InventoryKind[] = Object.values(InventoryKindEnum) as InventoryKind[];
 
-// Type guard (на випадок зовнішніх/несподіваних значень)
+// Type guard
 export function isInventoryKind(x: string): x is InventoryKind {
   return (INVENTORY_KINDS as string[]).includes(x);
 }

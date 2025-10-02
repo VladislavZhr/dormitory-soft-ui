@@ -4,6 +4,7 @@ import {
   type InventoryOp,
   type InventoryKind,
   InventoryKindEnum,
+  InventoryKindUA,
 } from '@/entities/student-inventory/model/types';
 import { isInventoryKind } from '@/entities/student-inventory/model/types';
 
@@ -11,7 +12,6 @@ import type { StudentInventoryDto } from './contracts';
 
 // DTO → Домен
 export function mapDtoToItem(dto: StudentInventoryDto): StudentInventoryItem {
-  // Не змінюємо поведінку: якщо бек повернув щось невідоме — зберігаємо, але типово звужуємо.
   const kind = isInventoryKind(dto.kind) ? dto.kind : (dto.kind as InventoryKind);
 
   return {
@@ -23,7 +23,7 @@ export function mapDtoToItem(dto: StudentInventoryDto): StudentInventoryItem {
   };
 }
 
-// Домен → рядки історії (поки немає окремого ендпоїнта history)
+// Домен → рядки історії
 export function itemToHistoryRows(item: StudentInventoryItem): InventoryHistoryRow[] {
   const out: InventoryHistoryRow[] = [];
 
@@ -48,16 +48,25 @@ export function itemToHistoryRows(item: StudentInventoryItem): InventoryHistoryR
   return out;
 }
 
-export const INVENTORY_KIND_LABELS: Record<InventoryKindEnum, string> = {
-  [InventoryKindEnum.MATTRESS]: 'Матрац',
-  [InventoryKindEnum.PILLOW]: 'Подушка',
-  [InventoryKindEnum.BLANKET]: 'Ковдра',
-  [InventoryKindEnum.PILLOWCASE]: 'Наволочки',
-  [InventoryKindEnum.SHEET]: 'Простирадла',
-  [InventoryKindEnum.BEDSPREAD]: 'Покривала',
-  [InventoryKindEnum.MATTRESS_COVER]: 'Підковдра',
-  [InventoryKindEnum.DUVET_COVER]: 'К-т білизни',
-  [InventoryKindEnum.CURTAINS]: 'Штори',
-  [InventoryKindEnum.TOWEL]: 'Рушник',
-  [InventoryKindEnum.TULLE]: 'Тюль',
+// Англ. → Укр.
+export const INVENTORY_KIND_LABELS: Record<InventoryKindEnum, InventoryKindUA> = {
+  [InventoryKindEnum.TULLE]: InventoryKindUA.TULLE,
+  [InventoryKindEnum.CURTAINS]: InventoryKindUA.CURTAINS,
+  [InventoryKindEnum.BLANKET]: InventoryKindUA.BLANKET,
+  [InventoryKindEnum.MATTRESS]: InventoryKindUA.MATTRESS,
+  [InventoryKindEnum.PILLOWCASE]: InventoryKindUA.PILLOWCASE,
+  [InventoryKindEnum.MATTRESS_COVER]: InventoryKindUA.MATTRESS_COVER,
+  [InventoryKindEnum.DUVET_COVER]: InventoryKindUA.DUVET_COVER,
+  [InventoryKindEnum.TOWEL_WAFFLE]: InventoryKindUA.TOWEL_WAFFLE,
+  [InventoryKindEnum.TOWEL_TERRY]: InventoryKindUA.TOWEL_TERRY,
+  [InventoryKindEnum.SHEET]: InventoryKindUA.SHEET,
+  [InventoryKindEnum.BEDSPREAD]: InventoryKindUA.BEDSPREAD,
+  [InventoryKindEnum.PILLOW]: InventoryKindUA.PILLOW,
+  [InventoryKindEnum.TABLECLOTH]: InventoryKindUA.TABLECLOTH,
+  [InventoryKindEnum.BED_SET]: InventoryKindUA.BED_SET,
 };
+
+export const INVENTORY_LABEL_TO_KIND: Record<InventoryKindUA, InventoryKindEnum> =
+  Object.fromEntries(
+    Object.entries(INVENTORY_KIND_LABELS).map(([k, v]) => [v, k as InventoryKindEnum]),
+  ) as Record<InventoryKindUA, InventoryKindEnum>;

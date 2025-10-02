@@ -3,16 +3,16 @@
 import ExcelJS from 'exceljs';
 
 import type { Student } from '@/entities/student/model/types';
-import { type InventoryKind, InventoryKindEnum } from '@/entities/student-inventory/model/types';
+import type { InventoryKind } from '@/entities/student-inventory/model/types';
 import { INVENTORY_KIND_LABELS } from '@/features/student-inventory/model/mappers';
 
 export type InventoryRow = {
-  kind: InventoryKind;
+  kind: InventoryKind; // англійський код
   qty: number;
 };
 
-// —————— налаштовувані довідники під шаблон ——————
-const ITEM_ORDER: string[] = [
+// —————— порядок рядків у шаблоні (людські назви) ——————
+const ITEM_ORDER = [
   'Матрац',
   'Чохол',
   'Подушка',
@@ -23,25 +23,13 @@ const ITEM_ORDER: string[] = [
   'Підковдра',
   'К-т білизни',
   'Штори',
-  'Рушник',
+  'Рушник вафельний',
+  'Рушник махровий',
+  'Скатертина',
   'Тюль',
-];
+] as const;
 
-// Якщо твої InventoryKind → мають інші “технічні” значення — замап будь-як:
-const LABEL_BY_KIND: Record<string, string> = {
-  Матрац: 'Матрац',
-  Чохол: 'Чохол',
-  Подушка: 'Подушка',
-  Ковдра: 'Ковдра',
-  Наволочки: 'Наволочки',
-  Простирадла: 'Простирадла',
-  Покривала: 'Покривала',
-  Підковдра: 'Підковдра',
-  'К-т білизни': 'К-т білизни',
-  Штори: 'Штори',
-  Рушник: 'Рушник',
-  Тюль: 'Тюль',
-};
+type ItemLabel = (typeof ITEM_ORDER)[number]; // обмежений юніон для безпеки
 
 // —————— головна функція експорту ——————
 export async function exportInventoryExcel(args: {
@@ -53,14 +41,16 @@ export async function exportInventoryExcel(args: {
 }): Promise<void> {
   const { student, items, dormitoryNo = 8, roomNoOverride, filename } = args;
 
-  // побудуємо швидкий lookup кількості по людських назвах рядків
-  const qtyByLabel = new Map<string, number>();
+  // будуємо lookup кількості по людських лейблах
+  const qtyByLabel = new Map<ItemLabel, number>();
   for (const r of items) {
-    const label = INVENTORY_KIND_LABELS[r.kind as InventoryKindEnum] ?? String(r.kind);
+    const label = INVENTORY_KIND_LABELS[r.kind] as ItemLabel;
+    if (!label) continue;
+
     qtyByLabel.set(label, (qtyByLabel.get(label) ?? 0) + Number(r.qty || 0));
   }
 
-  // ——— створення книги / листа ———
+  // створення книги / листа
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Арматурний список №2', {
     properties: { defaultRowHeight: 18 },
@@ -71,60 +61,49 @@ export async function exportInventoryExcel(args: {
       orientation: 'portrait',
       margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
     },
-    //views: [{ state: 'frozen', ySplit: 8 }], // фіксуємо шапку таблиці
   });
 
-  // 14 колонок: A..N
   ws.columns = [
     { key: 'colA', width: 6 }, // № п/п
     { key: 'colB', width: 24 }, // Найменування речей
-    { key: 'colC', width: 6 }, // Блок 1: Одержано К-ть
-    { key: 'colD', width: 18 }, // Блок 1: Підпис про одержання
-    { key: 'colE', width: 6 }, // Блок 1: Повернуто К-ть
-    { key: 'colF', width: 14 }, // Блок 1: Підпис
-    { key: 'colG', width: 6 }, // Блок 2: Одержано К-ть
-    { key: 'colH', width: 18 }, // Блок 2: Підпис про одержання
-    { key: 'colI', width: 6 }, // Блок 2: Повернуто К-ть
-    { key: 'colJ', width: 14 }, // Блок 2: Підпис
-    { key: 'colK', width: 6 }, // Блок 3: Одержано К-ть
-    { key: 'colL', width: 18 }, // Блок 3: Підпис про одержання
-    { key: 'colM', width: 6 }, // Блок 3: Повернуто К-ть
-    { key: 'colN', width: 14 }, // Блок 3: Підпис
+    { key: 'colC', width: 6 },
+    { key: 'colD', width: 18 },
+    { key: 'colE', width: 6 },
+    { key: 'colF', width: 14 },
+    { key: 'colG', width: 6 },
+    { key: 'colH', width: 18 },
+    { key: 'colI', width: 6 },
+    { key: 'colJ', width: 14 },
+    { key: 'colK', width: 6 },
+    { key: 'colL', width: 18 },
+    { key: 'colM', width: 6 },
+    { key: 'colN', width: 14 },
   ];
 
   const borderThin = { style: 'thin' as const, color: { argb: 'FF000000' } };
   const cellBorder = { top: borderThin, left: borderThin, bottom: borderThin, right: borderThin };
-
-  // товста нижня лінія
   const mediumBottom = { style: 'medium' as const, color: { argb: 'FF000000' } };
 
-  /** Перетворює A1-адресу (наприклад "C3") у {row, col} */
   function a1ToRC(a1: string): { row: number; col: number } {
     const m = /^([A-Z]+)(\d+)$/.exec(a1.toUpperCase());
     if (!m) throw new Error(`Invalid A1 address: ${a1}`);
-
-    const colLetters = m[1]!; // тепер точно string
-    const rowStr = m[2]!; // теж string
-
+    const colLetters = m[1]!;
+    const rowStr = m[2]!;
     let col = 0;
     for (let i = 0; i < colLetters.length; i++) {
-      col = col * 26 + (colLetters.charCodeAt(i) - 64); // 'A' = 65
+      col = col * 26 + (colLetters.charCodeAt(i) - 64);
     }
     return { row: parseInt(rowStr, 10), col };
   }
 
-  /** Підкреслює (bottom border) клітинки у діапазоні A1 (наприклад "C3:F3"). */
   function underlineRange(rangeA1: string) {
     const [fromRaw, toRaw] = rangeA1.split(':');
-    const from = fromRaw!; // завжди є
-    const to = toRaw ?? from; // якщо немає ':', беремо одну комірку
-
-    const s = a1ToRC(from);
-    const e = a1ToRC(to);
+    const s = a1ToRC(fromRaw!);
+    const e = a1ToRC(toRaw ?? fromRaw!);
 
     for (let r = s.row; r <= e.row; r++) {
       for (let c = s.col; c <= e.col; c++) {
-        const cell = ws.getRow(r).getCell(c); // тут точно number
+        const cell = ws.getRow(r).getCell(c);
         cell.border = { ...(cell.border ?? {}), bottom: mediumBottom };
       }
     }
@@ -288,21 +267,20 @@ export async function exportInventoryExcel(args: {
   ws.getRow(headerTopRow).height = 22;
   ws.getRow(headerBottomRow).height = 36;
 
-  // ——— дані рядків (1..ITEM_ORDER.length) ———
-  let rowIdx = headerBottomRow + 1;
+  // ——— дані рядків ———
+  let rowIdx = 12;
   for (let i = 0; i < ITEM_ORDER.length; i++) {
-    const name = ITEM_ORDER[i]!;
+    const name = ITEM_ORDER[i] as ItemLabel; // гарантуємо, що це ItemLabel
+    if (!name) continue; // захист від out-of-bounds
+
     const r = ws.getRow(rowIdx);
 
-    r.getCell(1).value = i + 1; // №
-    r.getCell(2).value = name; // Назва
+    r.getCell(1).value = i + 1;
+    r.getCell(2).value = name;
 
-    // Автозаповнення тільки першого блоку "Одержано/К-ть" (C)
     const qty = qtyByLabel.get(name) ?? 0;
-    r.getCell(3).value = qty > 0 ? qty : ''; // C = кількість одержано
-    // інші клітинки лишаємо порожні для ручного вводу
+    r.getCell(3).value = qty > 0 ? qty : '';
 
-    // стилі рядка
     for (let c = 1; c <= 14; c++) {
       const cell = r.getCell(c);
       cell.border = cellBorder;
@@ -311,11 +289,12 @@ export async function exportInventoryExcel(args: {
           ? { vertical: 'middle', horizontal: 'left' }
           : { vertical: 'middle', horizontal: 'center' };
     }
+
     r.height = 20;
     rowIdx++;
   }
 
-  // ——— кілька порожніх “запасних” рядків (як у бланку) ———
+  // запасні рядки + збереження
   for (let extra = 0; extra < 3; extra++) {
     const r = ws.getRow(rowIdx++);
     for (let c = 1; c <= 14; c++) {
@@ -329,10 +308,6 @@ export async function exportInventoryExcel(args: {
     r.height = 20;
   }
 
-  // ——— нижні примітки/підписи за потреби (можеш додати) ———
-  ws.addRow([]);
-
-  // ——— збереження ———
   const outName =
     filename ??
     `Арматурний_список_№2_${(student.fullName || '').replace(/\s+/g, '_')}_кімн_${String(
@@ -350,10 +325,4 @@ export async function exportInventoryExcel(args: {
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
-}
-
-// —————— утиліта для зсуву літери колонки (C→D→E→F) ——————
-function nextCol(col: string): string {
-  const code = col.toUpperCase().charCodeAt(0);
-  return String.fromCharCode(code + 1);
 }

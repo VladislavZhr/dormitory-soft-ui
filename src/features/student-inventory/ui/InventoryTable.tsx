@@ -1,5 +1,6 @@
 'use client';
 
+import { INVENTORY_EN_TO_UA } from '@/entities/student-inventory/model/mapper';
 import type { InventoryKind } from '@/entities/student-inventory/model/types';
 
 type AggregatedItem = {
@@ -8,7 +9,6 @@ type AggregatedItem = {
 };
 
 export default function InventoryTable({ rows }: { rows: ReadonlyArray<AggregatedItem> }) {
-  // захист від сміття + стабільне сортування за назвою виду
   const safeRows: AggregatedItem[] = Array.isArray(rows)
     ? rows
         .filter(
@@ -19,12 +19,22 @@ export default function InventoryTable({ rows }: { rows: ReadonlyArray<Aggregate
             Number.isFinite((r as AggregatedItem).qty),
         )
         .slice()
-        .sort((a, b) => a.kind.localeCompare(b.kind))
+        .sort((a, b) => {
+          const labelA = INVENTORY_EN_TO_UA[a.kind] ?? a.kind;
+          const labelB = INVENTORY_EN_TO_UA[b.kind] ?? b.kind;
+          return labelA.localeCompare(labelB, 'uk');
+        })
     : [];
+
+  // обчислюємо висоту для скролу: 5 рядків + заголовок
+  const maxBodyH = safeRows.length > 5 ? 56 * 5 + 52 : undefined;
 
   return (
     <div className="min-w-[49%] rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="relative overflow-x-auto">
+      <div
+        className="relative overflow-x-auto"
+        style={maxBodyH ? { maxHeight: maxBodyH, overflowY: 'auto' } : undefined}
+      >
         <table className="min-w-full table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-slate-50 text-slate-700">
             <tr className="[&>th]:px-4 [&>th]:py-3 text-xs uppercase tracking-wide">
@@ -34,12 +44,15 @@ export default function InventoryTable({ rows }: { rows: ReadonlyArray<Aggregate
           </thead>
 
           <tbody className="divide-y divide-slate-200">
-            {safeRows.map((r) => (
-              <tr key={r.kind} className="hover:bg-slate-50">
-                <td className="px-4 py-3 text-center text-slate-800">{r.kind}</td>
-                <td className="px-4 py-3 text-center font-medium text-slate-900">{r.qty}</td>
-              </tr>
-            ))}
+            {safeRows.map((r) => {
+              const label = INVENTORY_EN_TO_UA[r.kind] ?? r.kind;
+              return (
+                <tr key={r.kind} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 text-center text-slate-800">{label}</td>
+                  <td className="px-4 py-3 text-center font-medium text-slate-900">{r.qty}</td>
+                </tr>
+              );
+            })}
 
             {safeRows.length === 0 && (
               <tr>
