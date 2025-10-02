@@ -9,7 +9,6 @@ export function mapApiToStudent(dto: StudentApiDto): Student {
     fullName: dto.fullName,
     roomNumber: dto.roomNumber,
     faculty: dto.faculty,
-    course: dto.course,
     studyGroup: dto.studyGroup,
   };
 }

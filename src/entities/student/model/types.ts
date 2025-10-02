@@ -5,6 +5,5 @@ export type Student = {
   fullName: string;
   roomNumber: string;
   faculty: string;
-  course: number;
   studyGroup: string;
 };
