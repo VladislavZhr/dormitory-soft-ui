@@ -8,7 +8,6 @@ type Form = {
   roomNumber: string;
   faculty: string;
   studyGroup: string;
-  course: string;
 };
 
 type Props = {
@@ -72,13 +71,6 @@ export default function StudentDetailsView({
               value={edit ? form.studyGroup : student.studyGroup}
               edit={edit}
               onChange={onFieldChange('studyGroup')}
-            />
-            <Info
-              label="Курс"
-              value={edit ? form.course : String(student.course)}
-              type="number"
-              edit={edit}
-              onChange={onFieldChange('course')}
             />
           </div>
 

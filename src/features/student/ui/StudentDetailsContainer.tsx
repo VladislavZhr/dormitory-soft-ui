@@ -16,7 +16,6 @@ type FormState = {
   roomNumber: string;
   faculty: string;
   studyGroup: string;
-  course: string; // текст із інпуту
 };
 
 export function StudentDetailsContainer({ student }: { student: Student }) {
@@ -28,7 +27,6 @@ export function StudentDetailsContainer({ student }: { student: Student }) {
       roomNumber: student.roomNumber,
       faculty: student.faculty,
       studyGroup: student.studyGroup,
-      course: String(student.course),
     }),
     [student],
   );
@@ -60,7 +58,6 @@ export function StudentDetailsContainer({ student }: { student: Student }) {
         roomNumber: form.roomNumber.trim(),
         faculty: form.faculty.trim(),
         studyGroup: form.studyGroup.trim(),
-        course: Number(form.course),
       };
 
       const body = Object.fromEntries(
