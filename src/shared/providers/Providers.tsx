@@ -9,7 +9,7 @@ import { createQueryClient } from "@/shared/api/queryClient";
 
 type Props = { children: ReactNode };
 
-export default function AppProviders({ children }: Props) {
+export default function Providers({ children }: Props) {
   const [client] = useState(() => createQueryClient());
 
   return (
