@@ -1,7 +1,7 @@
 // src/features/student/model/mapper.ts
 
-import type { Student } from '@/entities/student/model/types';
-import type { StudentApiDto } from '@/features/student/model/contracts';
+import type { Student } from "@/entities/student/model/types";
+import type { StudentApiDto } from "@/features/student/model/contracts";
 
 export function mapApiToStudent(dto: StudentApiDto): Student {
   return {

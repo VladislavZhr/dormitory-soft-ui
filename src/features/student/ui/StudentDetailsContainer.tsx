@@ -1,15 +1,15 @@
 // src/features/student/ui/StudentDetailsContainer.tsx
-'use client';
+"use client";
 
-import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
-import type { Student } from '@/entities/student/model/types';
-import { updateStudent, deleteStudent } from '@/features/student/api/client';
-import { extractErrorMessage } from '@/shared/lib/error'; // одна утиліта для всіх кейсів
+import type { Student } from "@/entities/student/model/types";
+import { updateStudent, deleteStudent } from "@/features/student/api/client";
+import { extractErrorMessage } from "@/shared/lib/error"; // одна утиліта для всіх кейсів
 
-import ConfirmEvictModal from './modals/ConfirmEvictModal';
-import StudentDetailsView from './StudentDetailsView';
+import ConfirmEvictModal from "./modals/ConfirmEvictModal";
+import StudentDetailsView from "./StudentDetailsView";
 
 type FormState = {
   fullName: string;
@@ -60,22 +60,14 @@ export function StudentDetailsContainer({ student }: { student: Student }) {
         studyGroup: form.studyGroup.trim(),
       };
 
-      const body = Object.fromEntries(
-        Object.entries(payload).filter(
-          ([, v]) =>
-            v !== '' &&
-            v !== undefined &&
-            v !== null &&
-            !(typeof v === 'number' && Number.isNaN(v)),
-        ),
-      );
+      const body = Object.fromEntries(Object.entries(payload).filter(([, v]) => v !== "" && v !== undefined && v !== null && !(typeof v === "number" && Number.isNaN(v))));
 
       await updateStudent(student.id, body);
       setEdit(false);
       // за потреби:
       // router.refresh();
     } catch (e: unknown) {
-      setError(extractErrorMessage(e) ?? 'Помилка збереження');
+      setError(extractErrorMessage(e) ?? "Помилка збереження");
     } finally {
       setSaving(false);
     }
@@ -91,9 +83,9 @@ export function StudentDetailsContainer({ student }: { student: Student }) {
     setError(null);
     try {
       await deleteStudent(student.id);
-      router.push('/'); // заміни на потрібний маршрут
+      router.push("/"); // заміни на потрібний маршрут
     } catch (e: unknown) {
-      setError(extractErrorMessage(e) ?? 'Не вдалось видалити студента');
+      setError(extractErrorMessage(e) ?? "Не вдалось видалити студента");
     } finally {
       setEvicting(false);
       setEvictOpen(false);
@@ -102,24 +94,9 @@ export function StudentDetailsContainer({ student }: { student: Student }) {
 
   return (
     <>
-      <StudentDetailsView
-        student={student}
-        edit={edit}
-        form={form}
-        saving={saving}
-        error={error}
-        onToggleEdit={onToggleEdit}
-        onFieldChange={setField}
-        onSave={onSave}
-        onEvictOpen={onEvictOpen}
-      />
+      <StudentDetailsView student={student} edit={edit} form={form} saving={saving} error={error} onToggleEdit={onToggleEdit} onFieldChange={setField} onSave={onSave} onEvictOpen={onEvictOpen} />
 
-      <ConfirmEvictModal
-        open={evictOpen}
-        loading={evicting}
-        onClose={onEvictClose}
-        onConfirm={onConfirmEvict}
-      />
+      <ConfirmEvictModal open={evictOpen} loading={evicting} onClose={onEvictClose} onConfirm={onConfirmEvict} />
     </>
   );
 }

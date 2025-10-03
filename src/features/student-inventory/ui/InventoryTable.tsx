@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { INVENTORY_EN_TO_UA } from '@/entities/student-inventory/model/mapper';
-import type { InventoryKind } from '@/entities/student-inventory/model/types';
+import { INVENTORY_EN_TO_UA } from "@/entities/student-inventory/model/mapper";
+import type { InventoryKind } from "@/entities/student-inventory/model/types";
 
 type AggregatedItem = {
   kind: InventoryKind;
@@ -11,18 +11,12 @@ type AggregatedItem = {
 export default function InventoryTable({ rows }: { rows: ReadonlyArray<AggregatedItem> }) {
   const safeRows: AggregatedItem[] = Array.isArray(rows)
     ? rows
-        .filter(
-          (r): r is AggregatedItem =>
-            !!r &&
-            typeof r === 'object' &&
-            typeof (r as AggregatedItem).kind === 'string' &&
-            Number.isFinite((r as AggregatedItem).qty),
-        )
+        .filter((r): r is AggregatedItem => !!r && typeof r === "object" && typeof (r as AggregatedItem).kind === "string" && Number.isFinite((r as AggregatedItem).qty))
         .slice()
         .sort((a, b) => {
           const labelA = INVENTORY_EN_TO_UA[a.kind] ?? a.kind;
           const labelB = INVENTORY_EN_TO_UA[b.kind] ?? b.kind;
-          return labelA.localeCompare(labelB, 'uk');
+          return labelA.localeCompare(labelB, "uk");
         })
     : [];
 
@@ -31,10 +25,7 @@ export default function InventoryTable({ rows }: { rows: ReadonlyArray<Aggregate
 
   return (
     <div className="min-w-[49%] rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div
-        className="relative overflow-x-auto"
-        style={maxBodyH ? { maxHeight: maxBodyH, overflowY: 'auto' } : undefined}
-      >
+      <div className="relative overflow-x-auto" style={maxBodyH ? { maxHeight: maxBodyH, overflowY: "auto" } : undefined}>
         <table className="min-w-full table-fixed border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-slate-50 text-slate-700">
             <tr className="[&>th]:px-4 [&>th]:py-3 text-xs uppercase tracking-wide">

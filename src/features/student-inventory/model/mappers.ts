@@ -1,14 +1,7 @@
-import {
-  type StudentInventoryItem,
-  type InventoryHistoryRow,
-  type InventoryOp,
-  type InventoryKind,
-  InventoryKindEnum,
-  InventoryKindUA,
-} from '@/entities/student-inventory/model/types';
-import { isInventoryKind } from '@/entities/student-inventory/model/types';
+import { type StudentInventoryItem, type InventoryKind, InventoryKindEnum, InventoryKindUA } from "@/entities/student-inventory/model/types";
+import { isInventoryKind } from "@/entities/student-inventory/model/types";
 
-import type { StudentInventoryDto } from './contracts';
+import type { StudentInventoryDto } from "./contracts";
 
 // DTO → Домен
 export function mapDtoToItem(dto: StudentInventoryDto): StudentInventoryItem {
@@ -21,31 +14,6 @@ export function mapDtoToItem(dto: StudentInventoryDto): StudentInventoryItem {
     issuedAt: dto.issuedAt,
     returnedAt: dto.returnedAt,
   };
-}
-
-// Домен → рядки історії
-export function itemToHistoryRows(item: StudentInventoryItem): InventoryHistoryRow[] {
-  const out: InventoryHistoryRow[] = [];
-
-  out.push({
-    id: `${item.id}#issued`,
-    date: item.issuedAt,
-    op: 'issued' satisfies InventoryOp,
-    kind: item.kind,
-    quantity: item.quantity,
-  });
-
-  if (item.returnedAt) {
-    out.push({
-      id: `${item.id}#returned`,
-      date: item.returnedAt,
-      op: 'returned' satisfies InventoryOp,
-      kind: item.kind,
-      quantity: item.quantity,
-    });
-  }
-
-  return out;
 }
 
 // Англ. → Укр.
@@ -66,7 +34,7 @@ export const INVENTORY_KIND_LABELS: Record<InventoryKindEnum, InventoryKindUA> =
   [InventoryKindEnum.BED_SET]: InventoryKindUA.BED_SET,
 };
 
-export const INVENTORY_LABEL_TO_KIND: Record<InventoryKindUA, InventoryKindEnum> =
-  Object.fromEntries(
-    Object.entries(INVENTORY_KIND_LABELS).map(([k, v]) => [v, k as InventoryKindEnum]),
-  ) as Record<InventoryKindUA, InventoryKindEnum>;
+export const INVENTORY_LABEL_TO_KIND: Record<InventoryKindUA, InventoryKindEnum> = Object.fromEntries(Object.entries(INVENTORY_KIND_LABELS).map(([k, v]) => [v, k as InventoryKindEnum])) as Record<
+  InventoryKindUA,
+  InventoryKindEnum
+>;

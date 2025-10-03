@@ -1,6 +1,3 @@
-// ⚠️ DTO-шар: тут залишаємо прості рядки від/до бекенду
-
-// Один коректний StudentInventoryDto
 export interface StudentInventoryDto {
   id: string;
   studentId: number; // ID студента
@@ -13,7 +10,7 @@ export interface StudentInventoryDto {
 // Видача
 export interface IssueRequestDto {
   studentId: number;
-  kind: string; // надсилаємо як рядок; на виклику краще підставляти InventoryKind
+  kind: string;
   quantity: number;
 }
 
@@ -29,11 +26,3 @@ export interface ReturnRequestDto {
 export type ReturnResponseDto =
   | { closed: true } // повне повернення
   | StudentInventoryDto; // часткове → оновлений агрегат
-
-// Логи
-export interface InventoryLogDto {
-  occurredAt: string; // ISO-строка дати
-  operation: 'issue' | 'return'; // операція
-  kind: string; // вид інвентарю
-  quantity: number; // кількість саме у цій операції
-}
