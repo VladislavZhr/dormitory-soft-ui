@@ -34,12 +34,12 @@ function upstreamUrlFor(id: string, search = "") {
   return `${BACKEND}/api/inventories/audits/${encodeURIComponent(id)}${search || ""}`;
 }
 
-export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!BACKEND) {
     return NextResponse.json({ message: "Env BACKEND_API_URL is not set" }, { status: 500 });
   }
 
-  const id = ctx.params?.id ?? "";
+  const { id } = await params;
   if (!id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
   }
@@ -74,12 +74,12 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!BACKEND) {
     return NextResponse.json({ message: "Env BACKEND_API_URL is not set" }, { status: 500 });
   }
 
-  const id = ctx.params?.id ?? "";
+  const { id } = await params;
   if (!id) {
     return NextResponse.json({ message: "Missing id" }, { status: 400 });
   }
