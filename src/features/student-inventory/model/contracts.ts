@@ -33,7 +33,7 @@ export type ReturnResponseDto =
 // Логи
 export interface InventoryLogDto {
   occurredAt: string; // ISO-строка дати
-  operation: 'issue' | 'return'; // операція
+  operation: "issue" | "return"; // операція
   kind: string; // вид інвентарю
   quantity: number; // кількість саме у цій операції
 }
