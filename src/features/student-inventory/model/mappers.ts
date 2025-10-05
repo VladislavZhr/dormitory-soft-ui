@@ -1,3 +1,4 @@
+
 import { type StudentInventoryItem, type InventoryKind, InventoryKindEnum, InventoryKindUA } from "@/entities/student-inventory/model/types";
 import { isInventoryKind } from "@/entities/student-inventory/model/types";
 
@@ -15,7 +16,6 @@ export function mapDtoToItem(dto: StudentInventoryDto): StudentInventoryItem {
     returnedAt: dto.returnedAt,
   };
 }
-
 // Англ. → Укр.
 export const INVENTORY_KIND_LABELS: Record<InventoryKindEnum, InventoryKindUA> = {
   [InventoryKindEnum.TULLE]: InventoryKindUA.TULLE,

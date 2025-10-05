@@ -1,5 +1,5 @@
 // Мапінг англ -> укр
-import { InventoryKindEnum, InventoryKindUA } from '@/entities/student-inventory/model/types';
+import { InventoryKindEnum, InventoryKindUA, type InventoryKind } from "@/entities/student-inventory/model/types";
 
 export const INVENTORY_EN_TO_UA: Record<InventoryKindEnum, InventoryKindUA> = {
   [InventoryKindEnum.TULLE]: InventoryKindUA.TULLE,
@@ -19,6 +19,12 @@ export const INVENTORY_EN_TO_UA: Record<InventoryKindEnum, InventoryKindUA> = {
 };
 
 // Мапінг укр -> англ
-export const INVENTORY_UA_TO_EN: Record<InventoryKindUA, InventoryKindEnum> = Object.fromEntries(
-  Object.entries(INVENTORY_EN_TO_UA).map(([en, ua]) => [ua, en]),
-) as Record<InventoryKindUA, InventoryKindEnum>;
+export const INVENTORY_UA_TO_EN: Record<InventoryKindUA, InventoryKindEnum> = Object.fromEntries(Object.entries(INVENTORY_EN_TO_UA).map(([en, ua]) => [ua, en])) as Record<
+  InventoryKindUA,
+  InventoryKindEnum
+>;
+
+// Приймаємо юніон рядків, а не enum-тип
+export function labelInventoryKind(kind: InventoryKind): string {
+  return INVENTORY_EN_TO_UA[kind] ?? kind;
+}

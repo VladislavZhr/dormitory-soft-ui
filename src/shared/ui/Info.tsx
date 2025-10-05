@@ -28,13 +28,13 @@ export default function Info({
           type={type}
           value={value}
           onChange={(e: ChangeEvent<HTMLInputElement>) => onChange?.(e.target.value)}
-          className="mt-1 h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900
-                     focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+          placeholder={rowMode ? label : undefined}
+          className={`${rowMode ? "" : "mt-1"} h-11 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900
+          focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500`}
         />
       ) : (
-        <span className="mt-1 rounded-lg bg-slate-50 px-2 py-1 text-sm text-slate-900">
-          {value || "—"}
-        </span>
+        <span className={`${rowMode ? "" : "mt-1"} h-11 flex items-center w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900`}>{value || "—"}</span>
+
       )}
     </div>
   );

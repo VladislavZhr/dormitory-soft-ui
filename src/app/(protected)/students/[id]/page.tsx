@@ -1,6 +1,6 @@
-import { getStudentServer } from '@/features/student/api/server';
-import StudentDetails from '@/widgets/student-details/ui/StudentDetails';
-import StudentInventorySection from '@/widgets/student-inventory-section/ui/StudentInventorySection';
+import { getStudentServer } from "@/features/student/api/server";
+import StudentDetails from "@/widgets/student-details/ui/StudentDetails";
+import StudentInventorySection from "@/widgets/student-inventory-section/ui/StudentInventorySection";
 
 export const dynamic = "force-dynamic";
 

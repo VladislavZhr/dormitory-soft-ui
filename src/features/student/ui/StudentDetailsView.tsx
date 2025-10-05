@@ -22,17 +22,7 @@ type Props = {
   onEvictOpen: () => void;
 };
 
-export default function StudentDetailsView({
-  student,
-  edit,
-  form,
-  saving,
-  error,
-  onToggleEdit,
-  onFieldChange,
-  onSave,
-  onEvictOpen,
-}: Props) {
+export default function StudentDetailsView({ student, edit, form, saving, error, onToggleEdit, onFieldChange, onSave, onEvictOpen }: Props) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">

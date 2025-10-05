@@ -17,13 +17,17 @@
   "dependencies": {
     "@heroui/react": "^2.8.4",
     "@heroui/theme": "^2.4.22",
+    "@hookform/resolvers": "^5.2.2",
     "@tanstack/react-query": "^5.90.2",
     "@tanstack/react-query-devtools": "^5.90.2",
     "downshift": "^9.0.10",
     "exceljs": "^4.4.0",
     "next": "^15.5.3",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-hook-form": "^7.64.0",
+    "react-icons": "^5.5.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",
