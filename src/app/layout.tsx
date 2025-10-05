@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 import "./globals.css";
-import AppProviders from "./AppProviders";
+import Providers from "../shared/providers/Providers";
 
 export const metadata: Metadata = {
   title: "example-hostel-front",
@@ -11,7 +11,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uk" className="light">
       <body>
-        <AppProviders>{children}</AppProviders>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );
