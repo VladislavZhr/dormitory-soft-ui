@@ -18,6 +18,7 @@ function pickForwardHeaders(req: NextRequest, withBody: boolean): Headers {
   if (withBody) h.set("content-type", "application/json");
   return h;
 }
+
 function passthroughHeaders(from: Response): Headers {
   const out = new Headers();
   const ct = from.headers.get("content-type");
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     signal: req.signal,
     cache: "no-store",
   });
+
   const body = await r.text();
   return new NextResponse(body, { status: r.status, headers: passthroughHeaders(r) });
 }

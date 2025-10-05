@@ -7,14 +7,21 @@ type Props = {
   value: string;
   edit?: boolean;
   type?: "text" | "number";
-  rowMode?: boolean; // новий прапорець: у рядок без label зверху
+  wide?: boolean;
   onChange?: (v: string) => void;
 };
 
-export default function Info({ label, value, edit = false, type = "text", rowMode = false, onChange }: Props) {
+export default function Info({
+  label,
+  value,
+  edit = false,
+  type = "text",
+  wide = false,
+  onChange,
+}: Props) {
   return (
-    <div className="flex flex-col flex-1">
-      {!rowMode && <span className="text-xs font-medium text-slate-500">{label}</span>}
+    <div className={`flex flex-col ${wide ? "col-span-2" : ""}`}>
+      <span className="text-xs font-medium text-slate-500">{label}</span>
 
       {edit ? (
         <input
@@ -27,6 +34,7 @@ export default function Info({ label, value, edit = false, type = "text", rowMod
         />
       ) : (
         <span className={`${rowMode ? "" : "mt-1"} h-11 flex items-center w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900`}>{value || "—"}</span>
+
       )}
     </div>
   );

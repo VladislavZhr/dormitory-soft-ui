@@ -51,13 +51,3 @@ export type StudentInventoryItem = {
   issuedAt: string; // ISO
   returnedAt: string | null;
 };
-
-export type InventoryOp = "issued" | "returned";
-
-export type InventoryHistoryRow = {
-  id: string;
-  date: string; // ISO (issuedAt / returnedAt)
-  op: InventoryOp;
-  kind: InventoryKind;
-  quantity: number;
-};
