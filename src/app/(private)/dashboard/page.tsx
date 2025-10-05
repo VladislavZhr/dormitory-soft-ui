@@ -1,4 +1,5 @@
-// src/app/(private)/dashboard/page.tsx
+import DashboardDetails from "@/widgets/dashboard/DashboardDetails";
+
 export default function DashboardPage() {
-  return <h1 className="p-6 text-2xl">Приватний дашборд</h1>;
+  return <DashboardDetails />;
 }
