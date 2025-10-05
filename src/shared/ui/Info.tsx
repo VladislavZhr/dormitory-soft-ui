@@ -8,6 +8,7 @@ type Props = {
   edit?: boolean;
   type?: "text" | "number";
   wide?: boolean;
+  rowMode?: boolean; // ✅ додано
   onChange?: (v: string) => void;
 };
 
@@ -17,6 +18,7 @@ export default function Info({
   edit = false,
   type = "text",
   wide = false,
+  rowMode = false, // ✅ додано
   onChange,
 }: Props) {
   return (
@@ -34,7 +36,6 @@ export default function Info({
         />
       ) : (
         <span className={`${rowMode ? "" : "mt-1"} h-11 flex items-center w-full rounded-md border border-slate-200 bg-slate-50 px-3 text-sm text-slate-900`}>{value || "—"}</span>
-
       )}
     </div>
   );

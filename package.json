@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": ["eslint --fix"],
-    "*.{json,md,css}": ["prettier -w"]
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix"
+    ],
+    "*.{json,md,css}": [
+      "prettier -w"
+    ]
   },
   "scripts": {
     "dev": "next dev --turbopack",

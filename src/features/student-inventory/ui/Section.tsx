@@ -8,23 +8,14 @@ import type {
   InventoryKind, // рядковий юніон
   StudentInventoryItem, // має: id, kind, quantity, issuedAt, returnedAt|null
 } from "@/entities/student-inventory/model/types";
-import {
-  listStudentItems,
-  issueItem,
-  returnItem,
-} from "@/features/student-inventory/api/client";
+import { listStudentItems, issueItem, returnItem } from "@/features/student-inventory/api/client";
 import { exportInventoryExcel } from "@/features/student-inventory/lib/exportInventoryExcel";
 import InventoryTable from "@/features/student-inventory/ui/InventoryTable";
 import { IssueControls } from "@/features/student-inventory/ui/IssueControls";
 
 // ───────────────────────── helpers ─────────────────────────
 function isErrorWithMessage(e: unknown): e is { message: string } {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    "message" in e &&
-    typeof (e as { message: unknown }).message === "string"
-  );
+  return typeof e === "object" && e !== null && "message" in e && typeof (e as { message: unknown }).message === "string";
 }
 
 // ───────────────────────── aggregation ─────────────────────────
@@ -33,20 +24,15 @@ export type AggregatedItem = {
   qty: number;
 };
 
-/** Агрегуємо лише АКТИВНІ видання (returnedAt === null). */
-function aggregateByKind(
-  raw: readonly StudentInventoryItem[],
-): AggregatedItem[] {
+/** Агрегуємо лише активні видання (returnedAt === null). */
+function aggregateByKind(raw: readonly StudentInventoryItem[]): AggregatedItem[] {
   const map = new Map<InventoryKind, number>();
 
   for (const it of raw) {
-    if ((it as { returnedAt?: unknown }).returnedAt !== null) continue; // рахуємо тільки активні
+    if ((it as { returnedAt?: unknown }).returnedAt !== null) continue;
 
     const k = it.kind as InventoryKind;
-    const inc =
-      typeof (it as { quantity?: unknown }).quantity === "number"
-        ? (it as { quantity: number }).quantity
-        : Number((it as { quantity?: unknown }).quantity ?? 0);
+    const inc = typeof (it as { quantity?: unknown }).quantity === "number" ? (it as { quantity: number }).quantity : Number((it as { quantity?: unknown }).quantity ?? 0);
 
     if (Number.isFinite(inc) && inc > 0) {
       map.set(k, (map.get(k) ?? 0) + inc);
@@ -54,25 +40,17 @@ function aggregateByKind(
   }
 
   return Array.from(map.entries())
-    .map<AggregatedItem>(([kind, qty]) => ({ kind, qty }))
+    .map(([kind, qty]) => ({ kind, qty }))
     .sort((a, b) => a.kind.localeCompare(b.kind));
 }
 
 /** Інкремент/декремент агрегату по виду (оптимістичні апдейти). */
-function adjustKind(
-  prev: ReadonlyArray<AggregatedItem>,
-  kind: InventoryKind,
-  delta: number,
-): AggregatedItem[] {
+function adjustKind(prev: ReadonlyArray<AggregatedItem>, kind: InventoryKind, delta: number): AggregatedItem[] {
   const idx = prev.findIndex((p) => p.kind === kind);
 
   if (idx < 0) {
     const q = Math.max(0, delta);
-    return q > 0
-      ? [...prev, { kind, qty: q }].sort((a, b) =>
-          a.kind.localeCompare(b.kind),
-        )
-      : [...prev];
+    return q > 0 ? [...prev, { kind, qty: q }].sort((a, b) => a.kind.localeCompare(b.kind)) : [...prev];
   }
 
   const next = prev.slice();
@@ -89,32 +67,23 @@ function adjustKind(
 }
 
 // ───────────────────────── component ─────────────────────────
-export default function StudentInventorySection(props: {
-  student: Student; // для друку в Excel
-  studentId: number | string;
-  kinds?: InventoryKind[];
-}) {
+export default function StudentInventorySection(props: { student: Student; studentId: number | string; kinds?: InventoryKind[] }) {
   const { student, studentId, kinds = [] } = props;
 
-  // приводимо до number
-  const studentIdNum = useMemo<number>(() => {
+  const studentIdNum = useMemo(() => {
     const n = typeof studentId === "string" ? Number(studentId) : studentId;
-    if (!Number.isFinite(n))
-      throw new Error("Invalid studentId: must be a number");
+    if (!Number.isFinite(n)) throw new Error("Invalid studentId: must be a number");
     return n;
   }, [studentId]);
 
   const [items, setItems] = useState<AggregatedItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [opLoading, setOpLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState(true);
+  const [opLoading, setOpLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const availableKinds = useMemo<InventoryKind[]>(
-    () => (Array.isArray(kinds) && kinds.length > 0 ? kinds : []),
-    [kinds],
-  );
+  const availableKinds = useMemo(() => (Array.isArray(kinds) && kinds.length > 0 ? kinds : []), [kinds]);
 
-  // первинне завантаження
+  // Первинне завантаження
   useEffect(() => {
     let alive = true;
 
@@ -125,9 +94,7 @@ export default function StudentInventorySection(props: {
         const itemsArr = await listStudentItems(studentIdNum);
         if (!alive) return;
 
-        const safeItems: StudentInventoryItem[] = Array.isArray(itemsArr)
-          ? itemsArr
-          : [];
+        const safeItems: StudentInventoryItem[] = Array.isArray(itemsArr) ? itemsArr : [];
         const aggregated = aggregateByKind(safeItems);
         setItems(aggregated);
       } catch (e: unknown) {
@@ -143,18 +110,18 @@ export default function StudentInventorySection(props: {
     };
   }, [studentIdNum]);
 
-  // ВИДАТИ (+qty)
+  // ВИДАТИ
   const handleIssue = useCallback(
-    async (kind: InventoryKind, qty: number): Promise<void> => {
+    async (kind: InventoryKind, qty: number) => {
       if (!Number.isFinite(qty) || qty <= 0) return;
 
       setOpLoading(true);
       setError(null);
       try {
-        setItems((prev) => adjustKind(prev, kind, qty)); // оптимістично
+        setItems((prev) => adjustKind(prev, kind, qty));
         await issueItem({ studentId: studentIdNum, kind, quantity: qty });
       } catch (e: unknown) {
-        setItems((prev) => adjustKind(prev, kind, -qty)); // відкат
+        setItems((prev) => adjustKind(prev, kind, -qty));
         setError(isErrorWithMessage(e) ? e.message : "Помилка видачі");
       } finally {
         setOpLoading(false);
@@ -163,18 +130,18 @@ export default function StudentInventorySection(props: {
     [studentIdNum],
   );
 
-  // ПОВЕРНУТИ (-qty)
+  // ПОВЕРНУТИ
   const handleReturn = useCallback(
-    async (kind: InventoryKind, qty: number): Promise<void> => {
+    async (kind: InventoryKind, qty: number) => {
       if (!Number.isFinite(qty) || qty <= 0) return;
 
       setOpLoading(true);
       setError(null);
       try {
-        setItems((prev) => adjustKind(prev, kind, -qty)); // оптимістично
+        setItems((prev) => adjustKind(prev, kind, -qty));
         await returnItem({ studentId: studentIdNum, kind, quantity: qty });
       } catch (e: unknown) {
-        setItems((prev) => adjustKind(prev, kind, qty)); // відкат
+        setItems((prev) => adjustKind(prev, kind, qty));
         setError(isErrorWithMessage(e) ? e.message : "Помилка повернення");
       } finally {
         setOpLoading(false);
@@ -183,50 +150,24 @@ export default function StudentInventorySection(props: {
     [studentIdNum],
   );
 
-  // Експорт Excel (локально, без бекенду)
-  const handleExport = useCallback(async (): Promise<void> => {
-    exportInventoryExcel({
-      student,
-      items,
-    });
+  // Експорт Excel
+  const handleExport = useCallback(async () => {
+    exportInventoryExcel({ student, items });
   }, [student, items]);
 
-  // Підсвічуємо UI як "disabled" під час операцій/завантаження
-  const controlsDisabled =
-    opLoading || loading || availableKinds.length === 0;
+  const controlsDisabled = opLoading || loading || availableKinds.length === 0;
 
-  // Види, які реально можна повернути (є в активних залишках)
-  const returnableKinds = useMemo<InventoryKind[]>(
-    () => items.filter((x) => x.qty > 0).map((x) => x.kind),
-    [items],
-  );
+  const returnableKinds = useMemo(() => items.filter((x) => x.qty > 0).map((x) => x.kind), [items]);
 
   return (
     <section className="flex w-full flex-col gap-4">
-      <IssueControls
-        kinds={availableKinds}
-        returnableKinds={returnableKinds}
-        onIssueAction={handleIssue}
-        onReturnAction={handleReturn}
-        onExportAction={handleExport}
-        disabled={controlsDisabled}
-      />
+      <IssueControls kinds={availableKinds} returnableKinds={returnableKinds} onIssueAction={handleIssue} onReturnAction={handleReturn} onExportAction={handleExport} disabled={controlsDisabled} />
 
-      {(loading || opLoading) && (
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-          {loading ? "Завантаження…" : "Виконуємо операцію…"}
-        </div>
-      )}
+      {(loading || opLoading) && <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">{loading ? "Завантаження…" : "Виконуємо операцію…"}</div>}
 
-      {error && (
-        <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
-      <div className="flex flex-col gap-4 md:flex-row">
-        <InventoryTable rows={items} />
-      </div>
+      <InventoryTable rows={items} />
     </section>
   );
 }
