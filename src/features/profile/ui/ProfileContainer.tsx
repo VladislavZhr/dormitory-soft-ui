@@ -1,4 +1,5 @@
 // src/features/profile/ui/ProfileContainer.tsx
+// TypeScript strict
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,13 +10,13 @@ import { changePassword } from "../api/client";
 import { mapError } from "../lib/mapError";
 import { changePasswordSchema } from "../model/schema";
 import type { ChangePasswordErrors, ChangePasswordForm, ProfileViewProps } from "../model/types";
-import ProfileView from "../ui/ProfileView";
+
+import ProfileView from "./ProfileView";
 
 export default function ProfileContainer(): React.JSX.Element {
-  // У реальному застосунку ці дані прийдуть з auth
+  // TODO: підставити реальні дані профілю (через /api/auth/me або з серверної сторінки)
   const name = "Admin User";
-  const email = "admin@example.com"; // для відображення у UI
-  const username = "admin"; // ⬅️ ВАЖЛИВО: фактичний username для бекенда (TODO: взяти з auth-профілю)
+  const email = "admin@example.com";
 
   const {
     register,
@@ -51,7 +52,7 @@ export default function ProfileContainer(): React.JSX.Element {
 
     try {
       await changePassword({
-        username, // ⬅️ надсилаємо реальний username, який приймає бекенд
+        // Варіант B: бек визначає користувача з токена → username не надсилаємо
         oldPassword: values.currentPassword,
         newPassword: values.newPassword,
       });
@@ -65,8 +66,6 @@ export default function ProfileContainer(): React.JSX.Element {
         for (const [key, message] of Object.entries(fe)) {
           const formKey = mapServerFieldToForm(key);
           if (formKey) setError(formKey, { type: "server", message });
-          // Якщо бек поверне помилку для 'username', покажемо її як загальну
-          if (key === "username" && !formKey) setErrorMsg(message);
         }
         if (Object.keys(fe).length > 0) return;
       }

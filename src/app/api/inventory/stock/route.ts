@@ -1,4 +1,3 @@
-// src/app/api/inventory/stock/route.ts
 // TypeScript strict
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

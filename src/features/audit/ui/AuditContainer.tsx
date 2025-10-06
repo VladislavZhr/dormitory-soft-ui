@@ -4,47 +4,52 @@
 import { useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
 
-import { labelInventoryKind } from "@/entities/student-inventory/model/mapper";
-import { isInventoryKind } from "@/entities/student-inventory/model/types";
+import { INVENTORY_UA_TO_EN, labelInventoryKind } from "@/entities/student-inventory/model/mapper";
+import { isInventoryKind, type InventoryKindEnum } from "@/entities/student-inventory/model/types";
 
 import { fetchAuditById, deleteAudit } from "../api/client";
-import { useAuditsQuery, useCreateAuditMutation, useStockQuery, stockKeys } from "../api/hooks";
+import { useAuditsQuery, useCreateAuditMutation, useStockQuery, useUpsertStockMutation, stockKeys } from "../api/hooks";
 import { exportSnapshotToXLSX } from "../lib/exportXlsx";
 import { today } from "../lib/today";
 import type { StockItem, Snapshot, AuditId } from "../model/contracts";
 
 import AuditView from "./AuditView";
+// Модалка розміщена у фічі inventory
 import AddStockItemModal from "./modals/AddStockItemModal";
 
+// локальний сортер для миттєвого відображення без очікування refetch
+function sortStockDescById(list: StockItem[]): StockItem[] {
+  return [...list].sort((a, b) => {
+    const ai = Number(a.id);
+    const bi = Number(b.id);
+    if (Number.isFinite(ai) && Number.isFinite(bi)) return bi - ai;
+    return String(b.name).localeCompare(String(a.name), "uk");
+  });
+}
+
 export default function AuditContainer() {
-  // Ліва таблиця (поточний склад)
   const { data: stockData } = useStockQuery();
   const [stock, setStock] = React.useState<StockItem[]>([]);
   const [editingAvail, setEditingAvail] = React.useState<Record<number, number>>({});
   const [invOpen, setInvOpen] = React.useState(false);
 
-  // Перегляд конкретного снапшоту
   const [viewSnap, setViewSnap] = React.useState<Snapshot | null>(null);
-
-  // Модалка додавання предмета
   const [openAdd, setOpenAdd] = React.useState(false);
 
-  // Права таблиця (історія аудитів)
   const { data: snapsData, isLoading: _snapsLoading, error: snapsErrorObj } = useAuditsQuery();
   const snaps = snapsData ?? [];
 
   React.useEffect(() => {
     if (!stockData) return;
-    setStock(stockData);
+    // дані з кешу вже відсортовані select'ом, але збережемо інваріант локально
+    setStock(sortStockDescById(stockData));
     setEditingAvail({});
   }, [stockData]);
 
   const qc = useQueryClient();
-
-  // Мутація створення аудиту
   const createMutation = useCreateAuditMutation();
+  const upsertMutation = useUpsertStockMutation();
 
-  // Підсумки для лівої таблиці
   const sums = React.useMemo(() => {
     const sumIssued = stock.reduce((s, i) => s + i.issued, 0);
     const sumTotal = stock.reduce((s, i) => s + i.total, 0);
@@ -52,23 +57,50 @@ export default function AuditContainer() {
     return { sumIssued, sumAvailable, sumTotal };
   }, [stock]);
 
-  // Зберегти відредаговане "Доступно"
+  // перелік уже доданих видів (для модалки додавання)
+  const existingKinds = React.useMemo<InventoryKindEnum[]>(() => {
+    const acc = new Set<InventoryKindEnum>();
+    for (const i of stock) {
+      const mapped = (INVENTORY_UA_TO_EN as Record<string, InventoryKindEnum | undefined>)[i.name];
+      if (mapped) acc.add(mapped);
+    }
+    return Array.from(acc);
+  }, [stock]);
+
   const saveAvailable = React.useCallback(
     (id: number) => {
-      setStock((prev) =>
-        prev.map((i) => {
-          if (i.id !== id) return i;
-          const available = i.total - i.issued;
-          const nextAvail = editingAvail[id] ?? available;
-          return { ...i, total: i.issued + Math.max(0, nextAvail) };
-        }),
+      const item = stock.find((i) => i.id === id);
+      if (!item) return;
+
+      const currentAvailable = item.total - item.issued;
+      const desiredAvailable = editingAvail[id] ?? currentAvailable;
+      const safeAvail = Math.max(0, desiredAvailable);
+      const newTotal = item.issued + safeAvail;
+
+      const kindEnum = (INVENTORY_UA_TO_EN as Record<string, InventoryKindEnum | undefined>)[item.name];
+      if (!kindEnum) {
+        console.error("Не знайдено kind для:", item.name);
+        return;
+      }
+
+      // оптимістично: оновлюємо елемент і миттєво сортуємо — оновлене угорі
+      setStock((prev) => sortStockDescById(prev.map((i) => (i.id === id ? { ...i, total: newTotal } : i))));
+
+      upsertMutation.mutate(
+        { kind: kindEnum, total: newTotal },
+        {
+          onSuccess: () => {
+            setEditingAvail(({ [id]: _omit, ...rest }) => rest);
+          },
+          onError: () => {
+            void qc.invalidateQueries({ queryKey: stockKeys.all });
+          },
+        },
       );
-      setEditingAvail(({ [id]: _omit, ...rest }) => rest);
     },
-    [editingAvail],
+    [editingAvail, stock, upsertMutation, qc],
   );
 
-  // Створення аудиту
   const createSnapshot = React.useCallback(
     async (date: string) => {
       const rows = stock.map((i) => ({
@@ -89,36 +121,27 @@ export default function AuditContainer() {
     [stock, createMutation],
   );
 
-  // Перегляд аудиту за id (мережевий запит)
   const onViewById = React.useCallback(async (id: AuditId) => {
     try {
       const snap = await fetchAuditById(String(id));
       setViewSnap(snap as Snapshot);
     } catch (e) {
       console.error("[onViewById] failed:", e);
-      // TODO: toast
     }
   }, []);
 
-  // Видалення аудиту (мережевий запит) + індикатор рядка
   const [deletingIds, setDeletingIds] = React.useState<Set<AuditId>>(new Set());
   const isRowDeleting = React.useCallback((id: AuditId) => deletingIds.has(id), [deletingIds]);
 
   const onDeleteSnapshot = React.useCallback(
     async (id: AuditId) => {
-      // (без confirm) — власні модалки/тости можна додати у SnapshotViewModal або тут
       setDeletingIds((s) => new Set(s).add(id));
       try {
         await deleteAudit(String(id));
-
-        // якщо відкритий саме цей снапшот — закриваємо модалку
         setViewSnap((s) => (s && String(s.id) === String(id) ? null : s));
-
-        // оновлюємо список аудитів
         await qc.invalidateQueries({ queryKey: ["audits"] });
       } catch (e) {
         console.error("[onDeleteSnapshot] failed:", e);
-        // TODO: toast
       } finally {
         setDeletingIds((s) => {
           const next = new Set(s);
@@ -130,11 +153,9 @@ export default function AuditContainer() {
     [qc],
   );
 
-  // Точна підтримка exactOptionalPropertyTypes
   const snapsLoading = Boolean(_snapsLoading);
   const snapsError = snapsErrorObj instanceof Error ? snapsErrorObj.message : undefined;
 
-  // Експорт XLSX з локалізованими назвами (EN→UA для відомих ключів)
   const handleExportSnapshot = React.useCallback(() => {
     if (!viewSnap) return;
     const normalized: Snapshot = {
@@ -147,16 +168,15 @@ export default function AuditContainer() {
     exportSnapshotToXLSX(normalized, `inventory_${viewSnap.date}.xlsx`);
   }, [viewSnap]);
 
-  // Коли створили новий предмет — інвалідовуємо кеш складу
   const handleCreatedStockItem = React.useCallback(async () => {
     setOpenAdd(false);
+    // invalidate → useStockQuery.select відсортує, нове буде першим
     await qc.invalidateQueries({ queryKey: stockKeys.all });
   }, [qc]);
 
   return (
     <>
       <AuditView
-        // дані
         stock={stock}
         editingAvail={editingAvail}
         sums={sums}
@@ -164,17 +184,15 @@ export default function AuditContainer() {
         invOpen={invOpen}
         viewSnap={viewSnap}
         today={today()}
-        // опційні стани правої колонки — не передаємо undefined
         {...(snapsLoading ? { snapsLoading } : {})}
         {...(snapsError ? { snapsError } : {})}
-        // дії
         onOpenInventory={() => setInvOpen(true)}
         onCloseInventory={() => setInvOpen(false)}
         onCreateSnapshot={createSnapshot}
         onChangeAvail={(id, v) => setEditingAvail((e) => ({ ...e, [id]: v }))}
         onSaveAvail={saveAvailable}
-        onViewSnapshot={setViewSnap} // залишено для сумісності
-        onViewById={onViewById} // перегляд по UUID
+        onViewSnapshot={setViewSnap}
+        onViewById={onViewById}
         onDeleteSnapshot={onDeleteSnapshot}
         onCloseSnapshot={() => setViewSnap(null)}
         onExportSnapshot={handleExportSnapshot}
@@ -183,8 +201,7 @@ export default function AuditContainer() {
         isRowDeleting={isRowDeleting}
       />
 
-      {/* Модалка додавання предмета живе у контейнері, щоб інвалідувати кеш */}
-      <AddStockItemModal open={openAdd} onClose={() => setOpenAdd(false)} onCreated={handleCreatedStockItem} />
+      <AddStockItemModal open={openAdd} onClose={() => setOpenAdd(false)} onCreated={handleCreatedStockItem} existingKinds={existingKinds} />
     </>
   );
 }

@@ -83,5 +83,6 @@ export type AddStockItemModalProps = {
   open: boolean;
   onClose: () => void;
   endpoint?: string;
-  onCreated?: (payload: { kind: InventoryKindEnum; total: number }) => void;
+  onCreated?: () => void | Promise<void>;
+  existingKinds?: InventoryKindEnum[];
 };

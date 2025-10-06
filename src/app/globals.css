@@ -40,6 +40,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Abel, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
 }
 
 .home {

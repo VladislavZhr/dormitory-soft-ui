@@ -1,4 +1,6 @@
+// src/features/profile/api/client.ts
 // TypeScript strict
+
 import { changePasswordApiReqSchema, type ChangePasswordApiReq } from "@/features/profile/model/schema";
 import { httpJson, HttpError } from "@/shared/api/http";
 
@@ -9,18 +11,17 @@ export type ApiError = Error & {
 
 /**
  * Клієнтська mutationFn для TanStack Query.
- * Валідація Zod тут, до звернення в /api/users/change-password.
- * Потік: UI → (validate) → httpJson('/api/users/change-password') → route.ts → зовнішній бекенд.
+ * Потік: UI → (validate Zod) → /api/users/change-password → зовнішній бекенд (проксі на сервері).
+ * Токен у HttpOnly-cookie, у клієнті ми його не читаємо і не прокидаємо.
  */
 export async function changePassword(payload: ChangePasswordApiReq): Promise<void> {
-  // 1) Zod-валідація на клієнті
+  // 1) Локальна Zod-валідація API DTO
   const parsed = changePasswordApiReqSchema.safeParse(payload);
   if (!parsed.success) {
-    // Збираємо { [field]: message } під mapError
     const fieldErrors: Record<string, string> = {};
     for (const issue of parsed.error.issues) {
       const path = issue.path.join(".") || "_root";
-      if (!fieldErrors[path]) fieldErrors[path] = issue.message;
+      fieldErrors[path] = fieldErrors[path] ?? issue.message;
     }
     const apiErr: ApiError = new Error("Помилка валідації");
     apiErr.status = 400;
@@ -28,9 +29,9 @@ export async function changePassword(payload: ChangePasswordApiReq): Promise<voi
     throw apiErr;
   }
 
-  // 2) Внутрішній бекенд (Next API)
+  // 2) Внутрішній бекенд (Next API). httpJson має credentials:'include' → кука їде автоматично.
   try {
-    await httpJson<unknown>("/api/users/change-password", {
+    await httpJson<never>("/api/users/change-password", {
       method: "POST",
       body: JSON.stringify(parsed.data),
     });
@@ -38,19 +39,14 @@ export async function changePassword(payload: ChangePasswordApiReq): Promise<voi
   } catch (e: unknown) {
     // 3) Нормалізація помилок під mapError
     if (e instanceof HttpError) {
-      const apiErr: ApiError = new Error(e.message);
+      const apiErr: ApiError = new Error(e.message || "Помилка запиту");
       apiErr.status = e.status;
 
       const body = e.body;
       if (body && typeof body === "object") {
-        // Якщо бек віддає fieldErrors — прокидуємо їх
-        if ("fieldErrors" in body) {
-          apiErr.fieldErrors = (body as { fieldErrors?: Record<string, string> }).fieldErrors;
-        }
-        // Якщо є message — збережемо більш конкретне повідомлення
-        if ("message" in body && typeof (body as { message?: unknown }).message === "string") {
-          apiErr.message = (body as { message: string }).message;
-        }
+        const b = body as { fieldErrors?: Record<string, string>; message?: unknown };
+        if (b.fieldErrors) apiErr.fieldErrors = b.fieldErrors;
+        if (typeof b.message === "string" && b.message) apiErr.message = b.message;
       }
       throw apiErr;
     }

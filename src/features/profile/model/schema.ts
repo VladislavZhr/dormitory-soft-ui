@@ -17,7 +17,6 @@ export type ChangePasswordDto = z.infer<typeof changePasswordSchema>;
 
 // Валідація API-payload (бекенд очікує саме таку форму)
 export const changePasswordApiReqSchema = z.object({
-  username: z.string().min(1),
   oldPassword: z.string().min(1),
   newPassword: z.string().min(8),
 });

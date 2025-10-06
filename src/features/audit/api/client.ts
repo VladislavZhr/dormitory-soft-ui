@@ -1,12 +1,10 @@
-// src/features/audit/api/client.ts
 // TypeScript strict
 
 import { z } from "zod";
 
 import { httpJson, HttpError } from "@/shared/api/http";
 
-import { toStockListUi } from "../lib/adapters";
-import { auditListFromBackend, auditFromBackend } from "../lib/adapters";
+import { toStockListUi, auditListFromBackend, auditFromBackend } from "../lib/adapters";
 import type { AuditCreateReq, AuditItem, StockItem } from "../model/contracts";
 import { addStockItemReqSchema, addStockItemResSchema, auditCreateSchema, stockBackendListSchema, backendAuditsListSchema, backendAuditSchema, type CreateStockItemReq } from "../model/schema";
 
@@ -260,4 +258,13 @@ export async function createStockItem(payload: CreateStockItemReq): Promise<void
     apiErr.status = 0;
     throw apiErr;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/inventory/stock  (upsert: створити/оновити залишок)
+// Використовуйте це в UI для кнопки "Зберегти".
+// ─────────────────────────────────────────────────────────────────────────────
+export type UpsertStockReq = CreateStockItemReq; // { kind: string; total: number }
+export async function upsertStock(payload: UpsertStockReq): Promise<void> {
+  return createStockItem(payload);
 }

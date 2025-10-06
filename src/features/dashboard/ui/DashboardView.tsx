@@ -1,14 +1,41 @@
 // src/features/students/ui/DashboardView.tsx
+// TypeScript strict
 "use client";
 
 import * as React from "react";
-
+import Link from "next/link";
 import type { DashboardViewProps } from "../model/contracts";
 
 import ComboBox from "./dashboardElement/ComboBox";
 import AddStudentModal from "./modals/AddStudentModal";
-import ExportStudentsModal from "./modals/ExportStudentsModal"; // ⬅ NEW
+import ExportStudentsModal from "./modals/ExportStudentsModal";
 import ImportStudentsModal from "./modals/ImportStudentsModal";
+
+// Скільки номерів сторінок показувати одночасно.
+// Поміняй на 10, якщо треба більше.
+const VISIBLE_PAGES = 7;
+
+/** Повертає масив номерів сторінок довжиною до VISIBLE_PAGES зі зсувом навколо current */
+function slidingPages(totalPages: number, current: number, windowSize = VISIBLE_PAGES): number[] {
+  if (totalPages <= 0) return [];
+  const size = Math.max(1, Math.min(windowSize, totalPages));
+  const half = Math.floor(size / 2);
+
+  let start = current - half;
+  let end = start + size - 1;
+
+  if (start < 1) {
+    start = 1;
+    end = Math.min(totalPages, start + size - 1);
+  } else if (end > totalPages) {
+    end = totalPages;
+    start = Math.max(1, end - size + 1);
+  }
+
+  const out: number[] = [];
+  for (let p = start; p <= end; p++) out.push(p);
+  return out;
+}
 
 export default function DashboardView({
   residents,
@@ -46,16 +73,15 @@ export default function DashboardView({
   onAddSubmit,
   onImported,
 
-  // ⬇⬇ NEW: експорт
+  // експорт
   isExportOpen,
   isExporting,
   onOpenExport,
   onCloseExport,
   onConfirmExport,
 }: DashboardViewProps) {
-  const pages = React.useMemo(() => {
-    return Array.from({ length: totalPages }, (_, i) => i + 1);
-  }, [totalPages]);
+  // ❗️Лише видиме «вікно» сторінок, не всі одразу
+  const pages = React.useMemo(() => slidingPages(totalPages, page, VISIBLE_PAGES), [totalPages, page]);
 
   const isAllEmpty =
     (!fullNameValue || fullNameValue.trim() === "") &&
@@ -141,17 +167,17 @@ export default function DashboardView({
               Імпортувати студентів (Excel)
             </button>
 
-            {/* NEW: кнопка відкриває модалку експорту */}
+            {/* Експорт */}
             <button
               onClick={onOpenExport}
               type="button"
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-purple-300 bg-white px-3 py-2 text-sm font-medium text-purple-700 shadow-sm hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-purple-300"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="currentColor">
-                <path d="M12 3a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4.007 4.007a1 1 0 0 1-1.414 0L7.279 11.707a1 1 0 0 1 1.414-1.414L11 12.586V4a1 1 0 0 1 1-1z"></path>
-                <path d="M5 15a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z"></path>
+                <path d="M12 3a1 1 0 0 1 1 1v8.586l2.293-2.293a1 1 0 1 1 1.414 1.414l-4.007 4.007a1 1 0 0 1-1.414 0L7.279 11.707a1 1 0 0 1 1.414-1.414L11 12.586V4a1 1 0 0 1 1-1z" />
+                <path d="M5 15a1 1 0 0 1 1 1v2h12v-2a1 1 0 1 1 2 0v3a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1z" />
               </svg>
-              Експортувати студентів (Excel)
+              Список Студентів з Інвентарем (Excel)
             </button>
 
             <div className="ml-auto flex items-center gap-2">
@@ -198,9 +224,14 @@ export default function DashboardView({
                     <td className="px-4 py-3 text-slate-700">{r.studyGroup}</td>
                     <td className="px-4 py-3">
                       <div className="flex justify-center">
-                        <button type="button" className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700">
+                        <Link
+                          href={`/students/${encodeURIComponent(r.id)}`}
+                          prefetch={false}
+                          type="button"
+                          className="inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+                        >
                           Переглянути
-                        </button>
+                        </Link>
                       </div>
                     </td>
                   </tr>
@@ -221,12 +252,13 @@ export default function DashboardView({
             <button
               type="button"
               onClick={() => onPageChange(Math.max(1, page - 1))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Попередня сторінка"
               disabled={page <= 1}
             >
               ‹
             </button>
+
             {pages.map((n) => (
               <button
                 key={n}
@@ -235,14 +267,16 @@ export default function DashboardView({
                 className={`inline-flex h-8 w-8 items-center justify-center rounded-md border ${
                   n === page ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                 }`}
+                aria-current={n === page ? "page" : undefined}
               >
                 {n}
               </button>
             ))}
+
             <button
               type="button"
               onClick={() => onPageChange(Math.min(totalPages, page + 1))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
               aria-label="Наступна сторінка"
               disabled={page >= totalPages}
             >

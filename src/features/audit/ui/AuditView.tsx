@@ -47,7 +47,7 @@ export default function AuditView(props: AuditViewProps) {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Склад та інвентаризація</h1>
@@ -65,12 +65,12 @@ export default function AuditView(props: AuditViewProps) {
         {/* 2 колонки */}
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Ліва: поточний склад */}
-          <div className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <InventoryTable stock={stock} sums={sums} editingAvail={editingAvail} onChangeAvail={onChangeAvail} onSaveAvail={onSaveAvail} AvailableEditor={AvailableEditor} normalizeNames />
           </div>
 
           {/* Права: історія */}
-          <div className="flex-1 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
             <SnapshotsTable
               snaps={snaps}
               loading={Boolean(snapsLoading)}
@@ -102,7 +102,14 @@ export default function AuditView(props: AuditViewProps) {
           isDeleting={!!snapshotDeleting}
         />
       ) : (
-        <SnapshotViewModal open={false} snapshot={null} onClose={onCloseSnapshot} onExportClick={onExportSnapshot} isDeleting={!!snapshotDeleting} />
+        <SnapshotViewModal
+          open={Boolean(viewSnap)}
+          snapshot={viewSnap ?? null}
+          onClose={onCloseSnapshot}
+          onExportClick={onExportSnapshot}
+          onDelete={viewSnap ? () => onDeleteSnapshot(String(viewSnap.id)) : undefined}
+          isDeleting={!!snapshotDeleting}
+        />
       )}
     </main>
   );

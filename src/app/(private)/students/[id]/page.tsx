@@ -19,7 +19,7 @@ export default async function Page({ params }: { params: Promise<Params> }) {
         </div>
 
         {/* картка з інвентарем */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
+        <div>
           <StudentInventorySection student={student} studentId={Number(student.id)} />
         </div>
       </div>

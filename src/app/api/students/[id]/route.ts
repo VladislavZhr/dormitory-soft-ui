@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL || "").replace(/\/+$/, ""); // напр.: http://localhost:3001/api
+const BACKEND = (process.env.BACKEND_API_URL || "").replace(/\/+$/, ""); // напр.: http://localhost:3001/api
 
 function upstreamUrl(id: string) {
   if (!BACKEND) throw new Error("Env BACKEND_URL is not set");
-  return `${BACKEND}/students/${encodeURIComponent(id)}`;
+  return `${BACKEND}/api/students/${encodeURIComponent(id)}`;
 }
 
 function pickForwardHeaders(req: NextRequest, withBody: boolean): Headers {

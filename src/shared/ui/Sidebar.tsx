@@ -68,7 +68,7 @@ export default function Sidebar() {
       <nav id="side-menu" className={`menu ${open ? "is-open" : ""}`} aria-hidden={!open} onClick={(e) => e.stopPropagation()}>
         <ul>
           <li>
-            <Link href="/dashboard">Dashboard</Link>
+            <Link href="/">Dashboard</Link>
           </li>
           <li>
             <Link href="/profile">Profile</Link>

@@ -37,7 +37,7 @@ export default function LoginFormContainer() {
   const mutation = useMutation({
     mutationFn: login, // POST /api/auth/login
     onSuccess: () => {
-      router.replace("/dashboard");
+      router.replace("/");
     },
     onError: (err: unknown) => {
       const fe = mapError(err);
