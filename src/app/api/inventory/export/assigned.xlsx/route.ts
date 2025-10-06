@@ -5,78 +5,91 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 
+type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] | undefined };
+
+const API = (process.env.BACKEND_API_URL || "").replace(/\/+$/u, "");
+
+function bearerFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const kv = new Map(
+    parts.map((p) => {
+      const i = p.indexOf("=");
+      return i === -1 ? [p, ""] : [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }),
+  );
+  const token = kv.get("access_token") ?? kv.get("token") ?? null;
+  return token ? `Bearer ${token}` : null;
+}
+
 /**
  * GET /api/inventory/export/assigned.xlsx
  * Проксі: тягнемо файл з бекенда і віддаємо як є (стрімом).
  */
 export async function GET(req: NextRequest) {
-  const API = (process.env.BACKEND_API_URL || "").replace(/\/+$/, "");
   if (!API) {
     return NextResponse.json({ message: "BACKEND_API_URL is not set" }, { status: 500 });
   }
 
-  // Проксі query-параметрів як є
   const { search } = new URL(req.url);
   const target = `${API}/api/inventory/export/assigned.xlsx${search || ""}`;
+
+  const incomingCookie = req.headers.get("cookie");
+  const incomingAuth = req.headers.get("authorization");
+  const bearer = incomingAuth || bearerFromCookieHeader(incomingCookie);
+
+  const headers = new Headers();
+  headers.set("accept", "*/*");
+  if (incomingCookie) headers.set("cookie", incomingCookie);
+  if (bearer) headers.set("authorization", bearer);
 
   let upstream: Response;
   try {
     upstream = await fetch(target, {
       method: "GET",
-      // Прокидуємо cookie (для сесій) та приймаємо будь-який тип (файл)
-      headers: {
-        cookie: req.headers.get("cookie") ?? "",
-        accept: "*/*",
-      },
+      headers,
       cache: "no-store",
       redirect: "manual",
       signal: req.signal,
-      // credentials тут не потрібні — це серверний запит Next до бекенда
     });
   } catch (e) {
     return NextResponse.json({ message: "Upstream fetch failed", detail: String(e) }, { status: 502 });
   }
 
-  // Якщо бекенд повернув помилку — прокинемо статус і тіло як текст/бінар
+  const passCommon = (res: Response) => {
+    const outHeaders = new Headers();
+    const ct = res.headers.get("content-type");
+    if (ct) outHeaders.set("content-type", ct);
+    outHeaders.set("cache-control", "no-store");
+    const setCookies = (res.headers as HeadersWithGetSetCookie).getSetCookie?.() ?? (res.headers.get("set-cookie") ? [res.headers.get("set-cookie") as string] : []);
+    for (const sc of setCookies) {
+      if (sc) outHeaders.append("set-cookie", sc);
+    }
+    return outHeaders;
+  };
+
   if (!upstream.ok) {
-    // Спробуємо віддати тіло так, як є (може бути text/json)
-    const errHeaders = new Headers();
-    const ct = upstream.headers.get("content-type");
-    if (ct) errHeaders.set("content-type", ct);
-    // не кешуємо
-    errHeaders.set("cache-control", "no-store");
+    const errHeaders = passCommon(upstream);
     return new NextResponse(upstream.body, {
       status: upstream.status,
       headers: errHeaders,
     });
   }
 
-  // Зберемо корисні заголовки файлу
-  const headers = new Headers();
-  copyHeader(upstream.headers, headers, "content-type");
-  copyHeader(upstream.headers, headers, "content-length");
-  copyHeader(upstream.headers, headers, "content-disposition"); // filename
-  copyHeader(upstream.headers, headers, "etag");
-  copyHeader(upstream.headers, headers, "last-modified");
+  const outHeaders = passCommon(upstream);
+  const copyHeader = (name: string) => {
+    const v = upstream.headers.get(name);
+    if (v) outHeaders.set(name, v);
+  };
+  copyHeader("content-length");
+  copyHeader("content-disposition");
+  copyHeader("etag");
+  copyHeader("last-modified");
 
-  // Не кешувати
-  headers.set("cache-control", "no-store");
+  outHeaders.set("access-control-expose-headers", "Content-Disposition, Content-Type, Content-Length, ETag, Last-Modified");
 
-  // Дамо фронту можливість читати заголовки (на випадок fetch + читання filename)
-  headers.set("access-control-expose-headers", "Content-Disposition, Content-Type, Content-Length, ETag, Last-Modified");
-
-  // Якщо бек виставляє Set-Cookie — прокинемо (може бути кілька)
-  const setCookies = upstream.headers.getSetCookie?.() ?? [];
-  for (const sc of setCookies) headers.append("set-cookie", sc);
-
-  // Віддаємо стрімом тіло файлу 1:1
   return new NextResponse(upstream.body, {
     status: 200,
-    headers,
+    headers: outHeaders,
   });
-}
-
-function copyHeader(from: Headers, to: Headers, name: string) {
-  const v = from.get(name);
-  if (v) to.set(name, v);
 }

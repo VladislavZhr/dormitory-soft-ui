@@ -1,17 +1,34 @@
 // src/app/api/inventory/students/[id]/logs/route.ts
+// TypeScript strict
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND = (process.env.BACKEND_URL || "").replace(/\/+$/u, "");
 
 type Ctx = { params: Promise<{ id: string }> };
-type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] };
+type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] | undefined };
+
+function bearerFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const kv = new Map(
+    parts.map((p) => {
+      const i = p.indexOf("=");
+      return i === -1 ? [p, ""] : [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }),
+  );
+  const token = kv.get("access_token") ?? kv.get("token") ?? null;
+  return token ? `Bearer ${token}` : null;
+}
 
 export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
   if (!BACKEND) {
     return NextResponse.json({ error: "Env BACKEND_URL is not set" }, { status: 500 });
   }
 
-  const { id } = await ctx.params; // ✅ у Next 15 params — Promise
+  const { id } = await ctx.params;
   const idStr = String(id ?? "").trim();
   if (!idStr) {
     return NextResponse.json({ error: "Missing route param: id" }, { status: 400 });
@@ -19,33 +36,34 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
 
   const upstream = `${BACKEND}/inventory/students/${encodeURIComponent(idStr)}/logs`;
 
-  // Проксіруємо корисні заголовки (authorization, cookie)
+  const incomingAuth = req.headers.get("authorization");
+  const incomingCookie = req.headers.get("cookie");
+  const bearer = incomingAuth || bearerFromCookieHeader(incomingCookie);
+
   const fwdHeaders = new Headers();
-  const auth = req.headers.get("authorization");
-  const cookie = req.headers.get("cookie");
-  if (auth) fwdHeaders.set("authorization", auth);
-  if (cookie) fwdHeaders.set("cookie", cookie);
+  if (incomingCookie) fwdHeaders.set("cookie", incomingCookie);
+  if (bearer) fwdHeaders.set("authorization", bearer);
+  const accept = req.headers.get("accept");
+  if (accept) fwdHeaders.set("accept", accept);
 
   const r = await fetch(upstream, {
     method: "GET",
     headers: fwdHeaders,
     signal: req.signal,
     cache: "no-store",
-    // next: { revalidate: 0 } // (за бажанням) явний no-revalidate
   });
 
-  // Стрімимо тіло без буферизації
   const out = new NextResponse(r.body, { status: r.status });
+  out.headers.set("cache-control", "no-store");
 
-  // Проксіруємо content-type (щоб таблиці/JSON віддавалися правильно)
   const ct = r.headers.get("content-type");
-  out.headers.set("content-type", ct ?? "application/json");
+  if (ct) out.headers.set("content-type", ct);
 
-  // Коректна передача Set-Cookie (може бути кілька)
-  const setCookieValues = (r.headers as HeadersWithGetSetCookie).getSetCookie?.() ?? (r.headers.get("set-cookie") ? [r.headers.get("set-cookie") as string] : []);
-
-  for (const c of setCookieValues) {
-    if (c) out.headers.append("set-cookie", c);
+  const setCookie = (r.headers as HeadersWithGetSetCookie).getSetCookie?.() ?? r.headers.get("set-cookie");
+  if (Array.isArray(setCookie)) {
+    setCookie.forEach((c) => out.headers.append("set-cookie", c));
+  } else if (typeof setCookie === "string" && setCookie) {
+    out.headers.set("set-cookie", setCookie);
   }
 
   return out;

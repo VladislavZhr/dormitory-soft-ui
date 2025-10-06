@@ -5,19 +5,48 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 
 import { auditCreateSchema } from "@/features/audit/model/schema";
+import { ACCESS_TOKEN_KEY } from "@/shared/config/constants";
 
 // Зовнішній бекенд
 const BACKEND = (process.env.BACKEND_API_URL || "").replace(/\/+$/, "");
+
 type HeadersWithGetSetCookie = Headers & {
   getSetCookie?: () => string[];
 };
-// Загальні хелпери
+
+/* ───────────────────── Cookies/Auth helpers ───────────────────── */
+function getCookieFromHeader(cookieHeader: string | null, name: string): string | undefined {
+  if (!cookieHeader) return undefined;
+  for (const part of cookieHeader.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (k === name) return rest.join("=");
+  }
+  return undefined;
+}
+
+/** Authorization пріоритет: вхідний header → токен із cookie */
+function resolveAuth(req: NextRequest): string | undefined {
+  const incoming = req.headers.get("authorization");
+  if (incoming && /^bearer\s+/i.test(incoming)) return incoming;
+
+  const cookieHeader = req.headers.get("cookie");
+  const token = getCookieFromHeader(cookieHeader, ACCESS_TOKEN_KEY);
+  return token ? `Bearer ${token}` : undefined;
+}
+
+/* ───────────────────── Загальні хелпери ───────────────────── */
 function pickAuthHeaders(req: NextRequest) {
   const h = new Headers();
-  const auth = req.headers.get("authorization");
+
+  const auth = resolveAuth(req);
   if (auth) h.set("authorization", auth);
+
   const cookie = req.headers.get("cookie");
   if (cookie) h.set("cookie", cookie);
+
+  // Приватні відповіді не кешуємо
+  h.set("cache-control", "no-store");
+
   return h;
 }
 
@@ -39,7 +68,7 @@ function forwardSetCookies(upstream: Response, out: NextResponse) {
 }
 
 /**
- * GET /api/inventories/audits  →  {BACKEND}/inventories/audits
+ * GET /api/inventories/audits  →  {BACKEND}/api/inventories/audits
  */
 export async function GET(req: NextRequest) {
   if (!BACKEND) {
@@ -79,7 +108,7 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/inventories/audits  →  {BACKEND}/inventories/audits
+ * POST /api/inventories/audits  →  {BACKEND}/api/inventories/audits
  * Валідація payload на вході (Zod) перед проксі.
  */
 export async function POST(req: NextRequest) {

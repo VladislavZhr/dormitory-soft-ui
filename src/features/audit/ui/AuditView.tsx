@@ -43,8 +43,6 @@ export default function AuditView(props: AuditViewProps) {
     isRowDeleting,
   } = props;
 
-  const modalOpen = Boolean(viewSnap);
-
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8 border border-slate-200 bg-white shadow-sm rounded-2xl">
@@ -92,22 +90,14 @@ export default function AuditView(props: AuditViewProps) {
 
       {/* Модалка перегляду конкретного аудиту:
           ДВА окремі JSX-варіанти (із onDelete і без) — щоб уникнути React static flag помилки */}
-      {modalOpen ? (
+      {viewSnap && (
         <SnapshotViewModal
+          key={`snap-${String(viewSnap.id)}`} // форс-ремонт при зміні знімка
           open
-          snapshot={viewSnap!}
+          snapshot={viewSnap}
           onClose={onCloseSnapshot}
           onExportClick={onExportSnapshot}
-          onDelete={() => onDeleteSnapshot(String(viewSnap!.id))}
-          isDeleting={!!snapshotDeleting}
-        />
-      ) : (
-        <SnapshotViewModal
-          open={Boolean(viewSnap)}
-          snapshot={viewSnap ?? null}
-          onClose={onCloseSnapshot}
-          onExportClick={onExportSnapshot}
-          onDelete={viewSnap ? () => onDeleteSnapshot(String(viewSnap.id)) : undefined}
+          onDelete={() => onDeleteSnapshot(String(viewSnap.id))}
           isDeleting={!!snapshotDeleting}
         />
       )}

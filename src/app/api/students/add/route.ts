@@ -5,10 +5,23 @@ export const runtime = "nodejs";
 
 import { NextResponse, type NextRequest } from "next/server";
 
+function bearerFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const kv = new Map(
+    parts.map((p) => {
+      const i = p.indexOf("=");
+      return i === -1 ? [p, ""] : [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }),
+  );
+  const token = kv.get("access_token") ?? kv.get("token") ?? null;
+  return token ? `Bearer ${token}` : null;
+}
+
 /**
  * POST /api/students/add
  * Проксі на: POST {BACKEND_API_URL}/api/students/add
- * Передаємо cookies, сире JSON-тіло, повертаємо тіло/статус/Set-Cookie.
+ * Прокидує Cookie + Authorization (якщо є), повертає Set-Cookie.
  */
 export async function POST(req: NextRequest) {
   const API = (process.env.BACKEND_API_URL || "").replace(/\/+$/, "");
@@ -19,16 +32,18 @@ export async function POST(req: NextRequest) {
   const target = `${API}/api/students/add`;
 
   try {
-    // Беремо сирий текст, щоб не втрачати оригінальний payload (exactOptionalPropertyTypes-safe)
     const rawBody = await req.text();
+    const incomingCookie = req.headers.get("cookie");
+    const incomingAuth = req.headers.get("authorization");
+    const bearer = incomingAuth || bearerFromCookieHeader(incomingCookie);
 
     const upstream = await fetch(target, {
       method: "POST",
-      // Важливо: передаємо cookies і правильні заголовки
       headers: {
         accept: "application/json",
         "content-type": "application/json",
-        cookie: req.headers.get("cookie") ?? "",
+        cookie: incomingCookie ?? "",
+        ...(bearer ? { authorization: bearer } : {}),
       },
       body: rawBody || "{}",
       cache: "no-store",
@@ -37,14 +52,25 @@ export async function POST(req: NextRequest) {
 
     const contentType = upstream.headers.get("content-type") || "";
     const text = await upstream.text();
-    const body = contentType.includes("application/json") ? safeJson(text) : text;
+    const parsed = contentType.includes("application/json") ? safeJson(text) : text;
 
-    // Проксіюємо Set-Cookie (якщо є) + забороняємо кеш
     const headers = new Headers({ "cache-control": "no-store" });
-    const setCookie = upstream.headers.get("set-cookie");
-    if (setCookie) headers.append("set-cookie", setCookie);
+    if (!contentType.includes("application/json") && contentType) {
+      headers.set("content-type", contentType);
+    }
 
-    return NextResponse.json(body, {
+    const setCookie = (upstream.headers as unknown as { getSetCookie?: () => string[] | undefined }).getSetCookie?.() ?? upstream.headers.get("set-cookie");
+    if (Array.isArray(setCookie)) {
+      setCookie.forEach((sc) => headers.append("set-cookie", sc));
+    } else if (typeof setCookie === "string" && setCookie) {
+      headers.set("set-cookie", setCookie);
+    }
+
+    if (contentType.includes("application/json")) {
+      return NextResponse.json(parsed, { status: upstream.status, headers });
+    }
+
+    return new NextResponse(typeof parsed === "string" ? parsed : String(parsed), {
       status: upstream.status,
       headers,
     });
@@ -53,7 +79,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Акуратний JSON.parse без викидання помилки
 function safeJson<T = unknown>(s: string): T | object {
   try {
     return s ? (JSON.parse(s) as T) : {};

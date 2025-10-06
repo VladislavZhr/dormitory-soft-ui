@@ -1,44 +1,69 @@
+// src/app/api/inventory/students/[id]/items/route.ts
+// TypeScript strict
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = (process.env.BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND = (process.env.BACKEND_URL || "").replace(/\/+$/u, "");
 
-function upstreamUrl(studentId: string) {
-  if (!BACKEND) throw new Error("Env BACKEND_URL is not set");
-  return `${BACKEND}/inventory/students/${encodeURIComponent(studentId)}/items`;
+type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] | undefined };
+
+function bearerFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const kv = new Map(
+    parts.map((p) => {
+      const i = p.indexOf("=");
+      return i === -1 ? [p, ""] : [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }),
+  );
+  const token = kv.get("access_token") ?? kv.get("token") ?? null;
+  return token ? `Bearer ${token}` : null;
 }
 
-function pickForwardHeaders(req: NextRequest, withBody: boolean): Headers {
-  const h = new Headers();
-  const accept = req.headers.get("accept");
-  if (accept) h.set("accept", accept);
-  const auth = req.headers.get("authorization");
-  if (auth) h.set("authorization", auth);
-  const cookie = req.headers.get("cookie");
-  if (cookie) h.set("cookie", cookie);
-  if (withBody) h.set("content-type", "application/json");
-  return h;
-}
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  if (!BACKEND) {
+    return NextResponse.json({ error: "Env BACKEND_URL is not set" }, { status: 500 });
+  }
 
-function passthroughHeaders(from: Response): Headers {
-  const out = new Headers();
-  const ct = from.headers.get("content-type");
-  if (ct) out.set("content-type", ct);
-  from.headers.forEach((value, key) => {
-    if (key.toLowerCase() === "set-cookie") out.append("set-cookie", value);
-  });
-  return out;
-}
-
-// GET /api/inventory/students/[id]/items
-export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const { id } = await ctx.params;
-  const r = await fetch(upstreamUrl(id), {
+  const idStr = String(id ?? "").trim();
+  if (!idStr) {
+    return NextResponse.json({ error: "Missing route param: id" }, { status: 400 });
+  }
+
+  const upstream = `${BACKEND}/inventory/students/${encodeURIComponent(idStr)}/items`;
+
+  const incomingCookie = req.headers.get("cookie");
+  const incomingAuth = req.headers.get("authorization");
+  const bearer = incomingAuth || bearerFromCookieHeader(incomingCookie);
+
+  const fwdHeaders = new Headers();
+  const accept = req.headers.get("accept");
+  if (accept) fwdHeaders.set("accept", accept);
+  if (incomingCookie) fwdHeaders.set("cookie", incomingCookie);
+  if (bearer) fwdHeaders.set("authorization", bearer);
+
+  const r = await fetch(upstream, {
     method: "GET",
-    headers: pickForwardHeaders(req, false),
+    headers: fwdHeaders,
     signal: req.signal,
     cache: "no-store",
   });
 
-  const body = await r.text();
-  return new NextResponse(body, { status: r.status, headers: passthroughHeaders(r) });
+  const out = new NextResponse(r.body, { status: r.status });
+  out.headers.set("cache-control", "no-store");
+
+  const ct = r.headers.get("content-type");
+  if (ct) out.headers.set("content-type", ct);
+
+  const setCookie = (r.headers as HeadersWithGetSetCookie).getSetCookie?.() ?? r.headers.get("set-cookie");
+  if (Array.isArray(setCookie)) {
+    setCookie.forEach((c) => out.headers.append("set-cookie", c));
+  } else if (typeof setCookie === "string" && setCookie) {
+    out.headers.set("set-cookie", setCookie);
+  }
+
+  return out;
 }

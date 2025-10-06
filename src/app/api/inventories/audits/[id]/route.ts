@@ -1,32 +1,50 @@
-// src/app/api/inventory/audits/[id]/route.ts
+// src/app/api/inventories/audits/[id]/route.ts
 // TypeScript strict
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || "").replace(/\/+$/, "");
+const BACKEND = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || "").replace(/\/+$/u, "");
 
-// Переносимо auth/cookie з вхідного запиту
-function pickAuthHeaders(req: NextRequest) {
+type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] | undefined };
+
+function bearerFromCookieHeader(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+  const parts = cookieHeader.split(";").map((p) => p.trim());
+  const kv = new Map(
+    parts.map((p) => {
+      const i = p.indexOf("=");
+      return i === -1 ? [p, ""] : [p.slice(0, i), decodeURIComponent(p.slice(i + 1))];
+    }),
+  );
+  const token = kv.get("access_token") ?? kv.get("token") ?? null;
+  return token ? `Bearer ${token}` : null;
+}
+
+// Переносимо auth/cookie з вхідного запиту (додаємо Bearer з куки, якщо Authorization відсутній)
+function pickAuthHeaders(req: NextRequest): Headers {
   const h = new Headers();
-  const auth = req.headers.get("authorization");
-  if (auth) h.set("authorization", auth);
   const cookie = req.headers.get("cookie");
+  const incomingAuth = req.headers.get("authorization");
+  const bearer = incomingAuth || bearerFromCookieHeader(cookie);
   if (cookie) h.set("cookie", cookie);
+  if (bearer) h.set("authorization", bearer);
+  const accept = req.headers.get("accept");
+  if (accept) h.set("accept", accept);
   return h;
 }
 
 // Проксі кількох Set-Cookie (Node runtime підтримує getSetCookie)
-type HeadersWithGetSetCookie = Headers & { getSetCookie?: () => string[] };
 function forwardSetCookies(upstream: Response, out: NextResponse) {
   const h = upstream.headers as HeadersWithGetSetCookie;
-  if (typeof h.getSetCookie === "function") {
-    for (const c of h.getSetCookie()) out.headers.append("set-cookie", c);
-  } else {
-    const one = upstream.headers.get("set-cookie");
-    if (one) out.headers.append("set-cookie", one);
+  const many = h.getSetCookie?.();
+  if (Array.isArray(many)) {
+    many.forEach((c) => out.headers.append("set-cookie", c));
+    return;
   }
+  const one = upstream.headers.get("set-cookie");
+  if (one) out.headers.append("set-cookie", one);
 }
 
 function upstreamUrlFor(id: string, search = "") {
@@ -50,10 +68,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const r = await fetch(url, {
       method: "GET",
-      headers: {
-        accept: "application/json",
-        ...Object.fromEntries(pickAuthHeaders(req).entries()),
-      },
+      headers: pickAuthHeaders(req),
       cache: "no-store",
       signal: req.signal,
       redirect: "manual",
@@ -61,12 +76,15 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const out = new NextResponse(r.body, {
       status: r.status,
-      headers: {
-        "content-type": r.headers.get("content-type") || "application/json; charset=utf-8",
-        "cache-control": "no-store",
-        "access-control-expose-headers": "Content-Type, Content-Length, ETag, Last-Modified, Set-Cookie",
-      },
     });
+
+    out.headers.set("cache-control", "no-store");
+
+    const ct = r.headers.get("content-type");
+    if (ct) out.headers.set("content-type", ct);
+
+    out.headers.set("access-control-expose-headers", "Content-Type, Content-Length, ETag, Last-Modified, Set-Cookie");
+
     forwardSetCookies(r, out);
     return out;
   } catch (e) {
@@ -90,10 +108,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const r = await fetch(url, {
       method: "DELETE",
-      headers: {
-        accept: "application/json",
-        ...Object.fromEntries(pickAuthHeaders(req).entries()),
-      },
+      headers: pickAuthHeaders(req),
       cache: "no-store",
       signal: req.signal,
       redirect: "manual",
@@ -101,12 +116,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     const out = new NextResponse(r.body, {
       status: r.status,
-      headers: {
-        "content-type": r.headers.get("content-type") || "application/json; charset=utf-8",
-        "cache-control": "no-store",
-        "access-control-expose-headers": "Content-Type, Content-Length, ETag, Last-Modified, Set-Cookie",
-      },
     });
+
+    out.headers.set("cache-control", "no-store");
+
+    const ct = r.headers.get("content-type");
+    if (ct) out.headers.set("content-type", ct);
+
+    out.headers.set("access-control-expose-headers", "Content-Type, Content-Length, ETag, Last-Modified, Set-Cookie");
+
     forwardSetCookies(r, out);
     return out;
   } catch (e) {

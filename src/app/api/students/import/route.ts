@@ -3,7 +3,10 @@
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+import { cookies, headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
+
+import { ACCESS_TOKEN_KEY } from "@/shared/config/constants";
 
 /**
  * POST /api/students/import
@@ -36,12 +39,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // ── Authorization: Bearer ────────────────────────────────────────────────
+    // 1) Якщо клієнт уже надіслав Authorization — не перекриваємо його.
+    // 2) Інакше спробуємо сформувати Bearer з cookie ACCESS_TOKEN_KEY.
+    const incomingAuth = (await headers()).get("authorization") ?? req.headers.get("authorization") ?? "";
+    const tokenFromCookie = (await cookies()).get(ACCESS_TOKEN_KEY)?.value;
+    const bearer = incomingAuth && /^bearer\s+/i.test(incomingAuth) ? incomingAuth : tokenFromCookie ? `Bearer ${tokenFromCookie}` : "";
+
     const upstream = await fetch(target, {
       method: "POST",
       body: outForm, // Content-Type з boundary проставить fetch сам
       headers: {
         accept: "application/json",
         cookie: req.headers.get("cookie") ?? "",
+        ...(bearer ? { authorization: bearer } : {}),
       },
       cache: "no-store",
       signal: req.signal,
@@ -52,16 +63,16 @@ export async function POST(req: NextRequest) {
     const body = contentType.includes("application/json") ? safeJson(text) : text;
 
     // Готуємо заголовки відповіді: не кешувати + прокинемо всі Set-Cookie
-    const headers = new Headers({ "cache-control": "no-store" });
+    const respHeaders = new Headers({ "cache-control": "no-store" });
     upstream.headers.forEach((value, key) => {
       if (key.toLowerCase() === "set-cookie") {
-        headers.append("set-cookie", value);
+        respHeaders.append("set-cookie", value);
       }
     });
 
     return NextResponse.json(body as unknown, {
       status: upstream.status,
-      headers,
+      headers: respHeaders,
     });
   } catch {
     return NextResponse.json({ message: "Upstream fetch failed" }, { status: 502 });
