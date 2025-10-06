@@ -47,7 +47,7 @@ export default function AuditView(props: AuditViewProps) {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8 border border-slate-200 bg-white shadow-sm rounded-2xl">
         {/* Header */}
         <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Склад та інвентаризація</h1>
