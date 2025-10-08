@@ -1,7 +1,6 @@
+import { loginSchema } from "@/features/auth/login/model/schema";
+import type { LoginReq } from "@/features/auth/login/model/types";
 import { httpJson, HttpError } from "@/shared/api/http";
-
-import { loginSchema } from "../model/schema";
-import type { LoginReq } from "../model/types";
 
 export type ApiError = Error & {
   status?: number;

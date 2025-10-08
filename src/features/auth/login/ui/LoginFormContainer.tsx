@@ -8,8 +8,7 @@ import { useForm, useController } from "react-hook-form";
 
 import { login } from "@/features/auth/login/api/client";
 import { mapError } from "@/features/auth/login/lib/mapError";
-
-import { loginSchema, type LoginFormValues } from "../model/schema";
+import { loginSchema, type LoginFormValues } from "@/features/auth/login/model/schema";
 
 import LoginFormView from "./LoginFormView";
 

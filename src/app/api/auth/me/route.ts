@@ -4,8 +4,8 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse, type NextRequest } from "next/server";
 
-import { ACCESS_TOKEN_KEY } from "@/features/auth/model/constants";
-import { displayNameFromJwt, parseJwtUntrusted } from "@/features/auth/model/token";
+import { ACCESS_TOKEN_KEY } from "@/features/auth/login/model/constants";
+import { parseJwtUntrusted } from "@/features/auth/login/model/token";
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(ACCESS_TOKEN_KEY)?.value;
@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   }
 
   const payload = parseJwtUntrusted(token);
-  const name = displayNameFromJwt(payload);
+  const name = payload && typeof payload["sub"] === "string" ? (payload["sub"] as string) : "Anonymous";
+
   if (!name) {
     return NextResponse.json({ message: "Name not present in token" }, { status: 422, headers: { "cache-control": "no-store" } });
   }
