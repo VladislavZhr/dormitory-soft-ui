@@ -26,7 +26,7 @@ export default function AuditView(props: AuditViewProps) {
     onOpenInventory,
     onCloseInventory,
     onCreateSnapshot,
-    onChangeAvail,
+    onChangeTotal,
     onSaveAvail,
     onViewSnapshot, // опційно: показ уже готового снапшоту
     onViewById, // опційно: GET за id (UUID)
@@ -64,7 +64,7 @@ export default function AuditView(props: AuditViewProps) {
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Ліва: поточний склад */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <InventoryTable stock={stock} sums={sums} editingAvail={editingAvail} onChangeAvail={onChangeAvail} onSaveAvail={onSaveAvail} AvailableEditor={AvailableEditor} normalizeNames />
+            <InventoryTable stock={stock} sums={sums} editingAvail={editingAvail} onChangeTotal={onChangeTotal} onSaveAvail={onSaveAvail} AvailableEditor={AvailableEditor} normalizeNames />
           </div>
 
           {/* Права: історія */}

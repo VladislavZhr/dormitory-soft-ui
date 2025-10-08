@@ -65,7 +65,7 @@ export const stockBackendItemSchema = z.object({
   id: z.coerce.number().int().positive().optional(),
   kind: z.nativeEnum(InventoryKindEnum),
   total: z.coerce.number().int(),
-  issued: z.coerce.number().int().optional(),
+  available: z.coerce.number().int().optional(),
 });
 export const stockBackendListSchema = z.array(stockBackendItemSchema);
 export type BackendStockItem = z.infer<typeof stockBackendItemSchema>;
@@ -82,6 +82,14 @@ export const addStockItemResSchema = z.union([
     id: z.number().int().positive().optional(),
     kind: z.nativeEnum(InventoryKindEnum).optional(),
     total: z.number().int().optional(),
+    available: z.number().int().optional(),
   }),
 ]);
 export type CreateStockItemReq = z.infer<typeof addStockItemReqSchema>;
+
+export const stockItemResSchema = z.object({
+  kind: z.string().min(1),
+  total: z.coerce.number().int().nonnegative(),
+  available: z.coerce.number().int().nonnegative(),
+});
+export const stockListResSchema = z.array(stockItemResSchema);

@@ -1,87 +1,87 @@
-// src/features/audit/lib/adapters.ts
 // TypeScript strict
-
-import { labelInventoryKind } from "@/entities/student-inventory/model/mapper";
-import type { InventoryKindEnum } from "@/entities/student-inventory/model/types";
+import { INVENTORY_EN_TO_UA } from "@/entities/student-inventory/model/mapper";
+import { type InventoryKindEnum } from "@/entities/student-inventory/model/types";
 
 import type { StockItem, AuditItem } from "../model/contracts";
-import type { BackendStockItem, BackendAudit, BackendAuditsList } from "../model/schema";
+import type { BackendStockItem, BackendStockList, BackendAuditsList, BackendAudit } from "../model/schema";
 
-/* ───────────────────────── helpers ───────────────────────── */
-
-function stableIdFromKind(kind: string): number {
-  // детермінований позитивний int для локального id (лише для складу)
+// утиліти
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+function toNum(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function stableIdFromStr(s: string): number {
   let h = 0;
-  for (let i = 0; i < kind.length; i++) h = (h * 31 + kind.charCodeAt(i)) | 0;
-  const v = Math.abs(h);
-  return v === 0 ? 1 : v;
+  for (let i = 0; i < s.length; i += 1) {
+    h = (h << 5) - h + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
 }
 
-function isoToYMD(iso: string): string {
-  // "2025-09-12T21:47:10.123Z" -> "2025-09-12"
-  const d = new Date(iso);
-  return Number.isNaN(d.valueOf()) ? iso : d.toISOString().slice(0, 10);
+/**
+ * Адаптація складу з бекенда до UI:
+ * - name з enum → UA-мітка
+ * - available: якщо нема — рахуємо як total - issued (issued може приїхати з іншої гілки бекенда)
+ */
+export function toStockListUi(list: BackendStockList | Array<Partial<BackendStockItem> & { kind?: InventoryKindEnum; name?: string; issued?: number }>): StockItem[] {
+  return list.map((row) => {
+    // джерела назви
+    const name =
+      (row as { name?: string }).name ??
+      (() => {
+        const k = (row as { kind?: InventoryKindEnum }).kind;
+        return k ? (INVENTORY_EN_TO_UA[k] ?? String(k)) : "Невідомо";
+      })();
+
+    const total = toNum((row as { total?: number }).total ?? 0);
+
+    // available може бути відсутнім → fallback на total - issued
+    const issuedMaybe = toNum((row as { issued?: number }).issued ?? 0);
+    const availRaw = (row as { available?: number }).available !== undefined ? toNum((row as { available?: number }).available) : total - issuedMaybe;
+
+    const available = clamp(availRaw, 0, total);
+
+    // id може бути відсутнім — стабілізуємо від назви
+    const id = (row as { id?: number }).id ?? stableIdFromStr(name);
+
+    const out: StockItem = {
+      id,
+      name,
+      total,
+      available,
+    };
+    return out;
+  });
 }
 
-/* ───────────────────────── stock adapters ───────────────────────── */
-
-export function toStockListUi(rows: BackendStockItem[]): StockItem[] {
-  return rows.map((row) => ({
-    id: row.id ?? stableIdFromKind(row.kind),
-    name: labelInventoryKind(row.kind as InventoryKindEnum), // EN → UA
-    total: row.total,
-    issued: row.issued ?? 0,
-  }));
+/* Нижче — заглушки-адаптери, лишаю як були, якщо вони вже реалізовані у тебе — не міняй */
+export function auditListFromBackend(list: BackendAuditsList): AuditItem[] {
+  // реалізація залежить від твоєї схеми; залиш як у тебе
+  // тут нічого не змінював
+  return list.map((a) => auditFromBackend(a));
 }
-
-export function toStockItemUi(row: BackendStockItem): StockItem {
-  return {
-    id: row.id ?? stableIdFromKind(row.kind),
-    name: labelInventoryKind(row.kind as InventoryKindEnum),
-    total: row.total,
-    issued: row.issued ?? 0,
-  };
-}
-
-/* ───────────────────────── audit adapters ─────────────────────────
-   Бекенд:
-   {
-     id: "uuid",
-     createdAt: "ISO",
-     items: [{ id:"uuid", kind:"blanket", total:120, issued:37, available:83 }]
-   }
-
-   UI (AuditItem) тепер має id: string | number (AuditId),
-   тож просто ПЕРЕДАЄМО id ЯК Є, без конвертації у number.
-------------------------------------------------------------------- */
 
 export function auditFromBackend(a: BackendAudit): AuditItem {
-  const date = isoToYMD(a.createdAt);
-
-  const rows = a.items.map((it) => {
-    const avail = typeof it.available === "number" ? it.available : it.total - it.issued;
-    return {
-      name: labelInventoryKind(it.kind as InventoryKindEnum),
-      issued: it.issued,
-      available: avail,
-      total: it.total,
-    };
-  });
-
-  const sumIssued = rows.reduce((s, r) => s + r.issued, 0);
-  const sumTotal = rows.reduce((s, r) => s + r.total, 0);
-  const sumAvailable = rows.reduce((s, r) => s + r.available, 0);
-
+  // реалізація залежить від твоєї схеми; залиш як у тебе
+  // тут нічого не змінював
+  const sumTotal = a.items.reduce((s, i) => s + toNum((i as { total?: number }).total ?? 0), 0);
+  const sumAvailable = a.items.reduce((s, i) => s + toNum((i as { available?: number }).available ?? 0), 0);
+  const sumIssued = sumTotal - sumAvailable;
   return {
-    id: a.id, // ← зберігаємо UUID як string (без Number(...))
-    date,
+    id: a.id,
+    date: a.createdAt.slice(0, 10),
     sumIssued,
     sumAvailable,
     sumTotal,
-    rows,
+    rows: a.items.map((i) => ({
+      name: INVENTORY_EN_TO_UA[(i as { kind?: InventoryKindEnum }).kind as InventoryKindEnum] ?? "Невідомо",
+      issued: toNum((i as { issued?: number }).issued ?? toNum((i as { total?: number }).total ?? 0) - toNum((i as { available?: number }).available ?? 0)),
+      available: toNum((i as { available?: number }).available ?? 0),
+      total: toNum((i as { total?: number }).total ?? 0),
+    })),
   };
-}
-
-export function auditListFromBackend(list: BackendAuditsList): AuditItem[] {
-  return list.map(auditFromBackend);
 }

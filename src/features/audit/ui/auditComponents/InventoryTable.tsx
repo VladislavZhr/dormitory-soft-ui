@@ -1,27 +1,47 @@
+// TypeScript strict
 "use client";
 
 import * as React from "react";
 
-// ✅ підключаємо мапери з сутності (опційно-безпечне використання)
 import { INVENTORY_UA_TO_EN, INVENTORY_EN_TO_UA } from "@/entities/student-inventory/model/mapper";
-import { InventoryKindEnum, InventoryKindUA } from "@/entities/student-inventory/model/types";
+import { InventoryKindEnum, type InventoryKindUA } from "@/entities/student-inventory/model/types";
 
+import type { StockItem } from "../../model/contracts";
 import type { InventoryTableProps } from "../../model/types";
 
-export default function InventoryTable({ stock, sums, editingAvail, onChangeAvail, onSaveAvail, AvailableEditor, normalizeNames = true }: InventoryTableProps) {
+/**
+ * Локальний тип пропсів: підміняємо старі onChangeAvail/AvailableEditor
+ * на onChangeTotal/новий Editor, не ламаючи решту контрактів.
+ */
+type EditorComponent = (p: { total: number; onChangeTotal: (v: number) => void; onSave: () => void }) => React.JSX.Element;
+
+type Props = Omit<InventoryTableProps, "onChangeAvail" | "AvailableEditor"> & {
+  onChangeTotal: (id: number, v: number) => void;
+  AvailableEditor: EditorComponent;
+};
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+function toNum(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function baseAvailable(i: StockItem): number {
+  const total = toNum(i.total);
+  // UI-тип гарантує наявність available; все ж обмежимо діапазон
+  return clamp(toNum(i.available), 0, total);
+}
+
+export default function InventoryTable({ stock, sums, editingAvail, onChangeTotal, onSaveAvail, AvailableEditor, normalizeNames = true }: Props): React.JSX.Element {
   const resolveLabel = React.useCallback(
     (raw: string): string => {
       if (!normalizeNames) return raw;
-
-      // 1) пробуємо знайти відповідний enum для укр-лейблу
-      //    (наприклад, "Рушник махровий" -> "terryTowel")
       const enumKey = (INVENTORY_UA_TO_EN as Record<string, InventoryKindEnum | undefined>)[raw];
       if (enumKey) {
-        // 2) повертаємо «правильний» укр-лейбл (на випадок різних варіантів написання)
         const ua = INVENTORY_EN_TO_UA[enumKey] as InventoryKindUA | undefined;
         if (ua) return ua;
       }
-      // fallback: показуємо, що прийшло від бекенда
       return raw;
     },
     [normalizeNames],
@@ -31,7 +51,7 @@ export default function InventoryTable({ stock, sums, editingAvail, onChangeAvai
     <>
       <div className="flex items-center justify-between border-b border-slate-100 p-4">
         <h2 className="text-base font-semibold text-slate-900">Поточний склад</h2>
-        <span className="text-sm text-slate-500">Коригування змінює «Доступно»</span>
+        <span className="text-sm text-slate-500">Коригування змінює «Загалом»</span>
       </div>
 
       <div className="max-h-[65vh] overflow-auto">
@@ -48,12 +68,23 @@ export default function InventoryTable({ stock, sums, editingAvail, onChangeAvai
 
           <tbody className="divide-y divide-slate-200">
             {stock.map((item) => {
-              const available = item.total - item.issued;
-              const currentAvail = editingAvail[item.id] ?? available;
-              const isZeroAvail = currentAvail === 0;
-              const isLowAvail = currentAvail > 0 && currentAvail <= 5;
-
               const label = resolveLabel(item.name);
+
+              // 1) Оригінальні значення (як прийшли зі стоку)
+              const totalOriginal = toNum(item.total);
+              const availableOriginal = baseAvailable(item);
+              const issuedOriginal = totalOriginal - availableOriginal;
+
+              // 2) Відредагований total (тимчасово зберігаємо його в editingAvail[id])
+              const editedTotalRaw = editingAvail[item.id];
+              const totalForRow = typeof editedTotalRaw === "number" ? Math.max(0, Math.trunc(editedTotalRaw)) : totalOriginal;
+
+              // 3) Фіксуємо issued, а available = total - issued (із clamp у [0..total])
+              const issuedShown = Math.min(issuedOriginal, totalForRow);
+              const availableShown = clamp(totalForRow - issuedShown, 0, totalForRow);
+
+              const isZeroAvail = availableShown === 0;
+              const isLowAvail = availableShown > 0 && availableShown <= 5;
 
               return (
                 <tr key={item.id} className={`text-center hover:bg-slate-50 ${isZeroAvail ? "bg-rose-50/50" : ""}`}>
@@ -66,20 +97,20 @@ export default function InventoryTable({ stock, sums, editingAvail, onChangeAvai
                     )}
                   </td>
 
-                  <td className="px-4 py-3 text-slate-700">{item.issued}</td>
+                  <td className="px-4 py-3 text-slate-700">{issuedShown}</td>
 
                   <td className="px-4 py-3 text-slate-700">
                     <div className="flex items-center justify-center gap-2">
-                      <span>{available}</span>
+                      <span>{availableShown}</span>
                       {isZeroAvail && <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">0</span>}
                       {isLowAvail && !isZeroAvail && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">мало</span>}
                     </div>
                   </td>
 
-                  <td className="px-4 py-3 text-slate-700">{item.total}</td>
+                  <td className="px-4 py-3 text-slate-700">{totalForRow}</td>
 
                   <td className="px-4 py-3">
-                    <AvailableEditor value={currentAvail} onChange={(v) => onChangeAvail(item.id, v)} onSave={() => onSaveAvail(item.id)} />
+                    <AvailableEditor total={totalForRow} onChangeTotal={(v) => onChangeTotal(item.id, v)} onSave={() => onSaveAvail(item.id)} />
                   </td>
                 </tr>
               );

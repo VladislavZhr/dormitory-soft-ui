@@ -6,7 +6,7 @@ import { CgProfile } from "react-icons/cg";
 import type { ProfileViewProps } from "../model/types";
 
 // Чиста верстка; форма працює через register/onSubmit із контейнера.
-export default function ProfileView({ name, email, register, errors, isSubmitting, success, error, onSubmit }: ProfileViewProps) {
+export default function ProfileView({ name, register, errors, isSubmitting, success, error, onSubmit }: ProfileViewProps) {
   return (
     <main className="min-h-screen bg-slate-50 py-10">
       <div className="mx-auto max-w-lg px-4">
@@ -21,7 +21,6 @@ export default function ProfileView({ name, email, register, errors, isSubmittin
             </div>
 
             <h2 className="mt-4 text-lg font-semibold text-slate-900">{name}</h2>
-            <p className="text-slate-600">{email}</p>
           </div>
 
           <div className="border-t border-slate-200 px-6 py-5">

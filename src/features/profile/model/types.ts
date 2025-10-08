@@ -14,7 +14,6 @@ export type ChangePasswordErrors = Partial<Record<keyof ChangePasswordForm, stri
 
 export type ProfileViewProps = {
   name: string;
-  email: string;
   /** RHF реєстрація — обовʼязкова, бо у View викликаємо register('field') */
   register: UseFormRegister<ChangePasswordForm>;
   errors: ChangePasswordErrors;

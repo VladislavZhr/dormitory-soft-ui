@@ -16,7 +16,6 @@ import ProfileView from "./ProfileView";
 export default function ProfileContainer(): React.JSX.Element {
   // TODO: підставити реальні дані профілю (через /api/auth/me або з серверної сторінки)
   const name = "Admin User";
-  const email = "admin@example.com";
 
   const {
     register,
@@ -82,5 +81,5 @@ export default function ProfileContainer(): React.JSX.Element {
     confirmPassword: errors.confirmPassword?.message,
   };
 
-  return <ProfileView name={name} email={email} register={register} errors={uiErrors} isSubmitting={isSubmitting} success={success} error={error} onSubmit={onSubmit} />;
+  return <ProfileView name={name} register={register} errors={uiErrors} isSubmitting={isSubmitting} success={success} error={error} onSubmit={onSubmit} />;
 }

@@ -1,4 +1,5 @@
 // src/features/audit/ui/AuditContainer.tsx
+// TypeScript strict
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -14,10 +15,33 @@ import { today } from "../lib/today";
 import type { StockItem, Snapshot, AuditId } from "../model/contracts";
 
 import AuditView from "./AuditView";
-// Модалка розміщена у фічі inventory
 import AddStockItemModal from "./modals/AddStockItemModal";
 
-// локальний сортер для миттєвого відображення без очікування refetch
+// ---- helpers (без any) ------------------------------------------------------
+type StockLike = StockItem & { issued?: number };
+
+function toNum(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+function getAvail(item: StockLike): number {
+  const total = toNum(item.total);
+  const a = typeof item.available === "number" ? item.available : undefined;
+  const i = typeof item.issued === "number" ? item.issued : undefined;
+  const base = a ?? (typeof i === "number" ? total - toNum(i) : 0);
+  return clamp(toNum(base), 0, total);
+}
+/** Поточне issued від бекових даних (не редагуємо його в UI) */
+function getIssued(item: StockLike): number {
+  const total = toNum(item.total);
+  const avail = getAvail(item);
+  return clamp(total - avail, 0, total);
+}
+// -----------------------------------------------------------------------------
+
 function sortStockDescById(list: StockItem[]): StockItem[] {
   return [...list].sort((a, b) => {
     const ai = Number(a.id);
@@ -27,9 +51,14 @@ function sortStockDescById(list: StockItem[]): StockItem[] {
   });
 }
 
-export default function AuditContainer() {
+export default function AuditContainer(): React.JSX.Element {
   const { data: stockData } = useStockQuery();
   const [stock, setStock] = React.useState<StockItem[]>([]);
+  /**
+   * Тимчасові значення ВІДРЕДАГОВАНОГО total (за id рядка).
+   * Ім'я ключа залишаємо як editingAvail для зворотної сумісності з існуючим UI,
+   * але тепер тут зберігається саме total для рядка.
+   */
   const [editingAvail, setEditingAvail] = React.useState<Record<number, number>>({});
   const [invOpen, setInvOpen] = React.useState(false);
 
@@ -41,7 +70,6 @@ export default function AuditContainer() {
 
   React.useEffect(() => {
     if (!stockData) return;
-    // дані з кешу вже відсортовані select'ом, але збережемо інваріант локально
     setStock(sortStockDescById(stockData));
     setEditingAvail({});
   }, [stockData]);
@@ -50,14 +78,25 @@ export default function AuditContainer() {
   const createMutation = useCreateAuditMutation();
   const upsertMutation = useUpsertStockMutation();
 
+  // Підсумки (рахуємо від можливо зміненого total; issued фіксований як у даних)
   const sums = React.useMemo(() => {
-    const sumIssued = stock.reduce((s, i) => s + i.issued, 0);
-    const sumTotal = stock.reduce((s, i) => s + i.total, 0);
-    const sumAvailable = sumTotal - sumIssued;
-    return { sumIssued, sumAvailable, sumTotal };
-  }, [stock]);
+    let sumTotal = 0;
+    let sumAvailable = 0;
+    for (const item of stock) {
+      const originalTotal = toNum(item.total);
+      const editedTotal = editingAvail[item.id];
+      const totalForRow = typeof editedTotal === "number" ? Math.max(0, Math.trunc(editedTotal)) : originalTotal;
+      sumTotal += totalForRow;
 
-  // перелік уже доданих видів (для модалки додавання)
+      const issued = getIssued(item as StockLike);
+      const available = clamp(totalForRow - issued, 0, totalForRow);
+      sumAvailable += available;
+    }
+    const sumIssued = sumTotal - sumAvailable;
+    return { sumIssued, sumAvailable, sumTotal };
+  }, [stock, editingAvail]);
+
+  // уже додані види
   const existingKinds = React.useMemo<InventoryKindEnum[]>(() => {
     const acc = new Set<InventoryKindEnum>();
     for (const i of stock) {
@@ -67,15 +106,15 @@ export default function AuditContainer() {
     return Array.from(acc);
   }, [stock]);
 
-  const saveAvailable = React.useCallback(
+  // Зберегти ВІДРЕДАГОВАНИЙ TOTAL (як у createStockItem: upsert { kind, total })
+  const saveTotal = React.useCallback(
     (id: number) => {
-      const item = stock.find((i) => i.id === id);
+      const item = stock.find((i) => i.id === id) as StockLike | undefined;
       if (!item) return;
 
-      const currentAvailable = item.total - item.issued;
-      const desiredAvailable = editingAvail[id] ?? currentAvailable;
-      const safeAvail = Math.max(0, desiredAvailable);
-      const newTotal = item.issued + safeAvail;
+      const originalTotal = toNum(item.total);
+      const edited = editingAvail[id];
+      const nextTotal = typeof edited === "number" ? Math.max(0, Math.trunc(edited)) : originalTotal;
 
       const kindEnum = (INVENTORY_UA_TO_EN as Record<string, InventoryKindEnum | undefined>)[item.name];
       if (!kindEnum) {
@@ -83,11 +122,16 @@ export default function AuditContainer() {
         return;
       }
 
-      // оптимістично: оновлюємо елемент і миттєво сортуємо — оновлене угорі
-      setStock((prev) => sortStockDescById(prev.map((i) => (i.id === id ? { ...i, total: newTotal } : i))));
+      // Перерахунок available/issued від нового total (issued фіксуємо від беку)
+      const issued = getIssued(item);
+      const nextAvailable = clamp(nextTotal - issued, 0, nextTotal);
 
+      // оптимістично оновлюємо total (+ узгоджуємо available)
+      setStock((prev) => sortStockDescById(prev.map((i) => (i.id === id ? { ...i, total: nextTotal, available: nextAvailable } : i))));
+
+      // бек очікує рівно { kind, total }
       upsertMutation.mutate(
-        { kind: kindEnum, total: newTotal },
+        { kind: kindEnum, total: nextTotal },
         {
           onSuccess: () => {
             setEditingAvail(({ [id]: _omit, ...rest }) => rest);
@@ -103,12 +147,19 @@ export default function AuditContainer() {
 
   const createSnapshot = React.useCallback(
     async (date: string) => {
-      const rows = stock.map((i) => ({
-        name: i.name,
-        issued: i.issued,
-        available: i.total - i.issued,
-        total: i.total,
-      }));
+      const rows = stock.map((i) => {
+        const originalTotal = toNum(i.total);
+        const edited = editingAvail[i.id];
+        const total = typeof edited === "number" ? Math.max(0, Math.trunc(edited)) : originalTotal;
+        const issued = getIssued(i as StockLike);
+        const available = clamp(total - issued, 0, total);
+        return {
+          name: i.name,
+          issued,
+          available,
+          total,
+        };
+      });
 
       try {
         const created = await createMutation.mutateAsync({ date, rows });
@@ -118,7 +169,7 @@ export default function AuditContainer() {
         console.error(err);
       }
     },
-    [stock, createMutation],
+    [stock, editingAvail, createMutation],
   );
 
   const onViewById = React.useCallback(async (id: AuditId) => {
@@ -170,7 +221,6 @@ export default function AuditContainer() {
 
   const handleCreatedStockItem = React.useCallback(async () => {
     setOpenAdd(false);
-    // invalidate → useStockQuery.select відсортує, нове буде першим
     await qc.invalidateQueries({ queryKey: stockKeys.all });
   }, [qc]);
 
@@ -189,8 +239,8 @@ export default function AuditContainer() {
         onOpenInventory={() => setInvOpen(true)}
         onCloseInventory={() => setInvOpen(false)}
         onCreateSnapshot={createSnapshot}
-        onChangeAvail={(id, v) => setEditingAvail((e) => ({ ...e, [id]: v }))}
-        onSaveAvail={saveAvailable}
+        onChangeTotal={(id, v) => setEditingAvail((e) => ({ ...e, [id]: v }))}
+        onSaveAvail={saveTotal}
         onViewSnapshot={setViewSnap}
         onViewById={onViewById}
         onDeleteSnapshot={onDeleteSnapshot}
