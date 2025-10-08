@@ -1,10 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata } from "next";
 
-import './globals.css';
-import Providers from '../shared/providers/Providers';
+import "./globals.css";
+import Providers from "../shared/providers/Providers";
 
 export const metadata: Metadata = {
-  title: 'example-hostel-front',
+  title: "example-hostel-front",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

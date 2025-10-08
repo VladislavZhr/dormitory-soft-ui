@@ -1,11 +1,21 @@
-'use client';
+"use client";
 
-import { HeroUIProvider } from '@heroui/react';
-import { useRouter } from 'next/navigation';
-import * as React from 'react';
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
+import { useState } from "react";
+import type { ReactNode } from "react";
 
-export default function Providers({ children }: { children: React.ReactNode }) {
-  const router = useRouter();
-  // navigate передаємо для коректної роботи посилань усередині компонентів
-  return <HeroUIProvider navigate={router.push}>{children}</HeroUIProvider>;
+import { createQueryClient } from "@/shared/api/queryClient";
+
+type Props = { children: ReactNode };
+
+export default function Providers({ children }: Props) {
+  const [client] = useState(() => createQueryClient());
+
+  return (
+    <QueryClientProvider client={client}>
+      {children}
+      <ReactQueryDevtools initialIsOpen={false} />
+    </QueryClientProvider>
+  );
 }
