@@ -20,7 +20,7 @@ export default function ProfileView({ name, register, errors, isSubmitting, succ
               </div>
             </div>
 
-            <h2 className="mt-4 text-lg font-semibold text-slate-900">{name}</h2>
+            <h2 className="mt-4 text-lg font-semibold text-slate-900">Admin</h2>
           </div>
 
           <div className="border-t border-slate-200 px-6 py-5">
